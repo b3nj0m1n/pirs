@@ -10,7 +10,9 @@ mod config;
 mod error;
 pub mod export;
 pub mod lint;
+pub mod metrics;
 mod parse;
+pub mod report;
 mod repository;
 pub mod template;
 mod types;
@@ -20,8 +22,13 @@ pub use config::{
     ENV_PIRS_CONFIG, LEGACY_CONFIG_FILE, McpConfig, PrivacyConfig, TemplateConfig, discover,
 };
 pub use error::{Error, Result};
-pub use lint::{Issue, IssueSeverity, LintReport, lint_pir, lint_repository, review_gate};
+pub use lint::{
+    BLAMEFUL_PHRASES, Issue, IssueSeverity, LintReport, lint_language, lint_pir, lint_repository,
+    lint_repository_language, review_gate,
+};
+pub use metrics::{DurationStats, IncidentMetrics, TagCount, compute_metrics, render_metrics_text};
 pub use parse::Parser;
+pub use report::{render_action_register, render_pir_report};
 pub use repository::Repository;
 pub use types::{
     ActionItem, ActionStatus, Actor, ActorKind, Confidentiality, EvidenceLink, IncidentSeverity,

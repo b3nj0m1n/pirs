@@ -141,6 +141,103 @@ pub fn lint_repository(repo: &Repository) -> Result<LintReport> {
     Ok(report)
 }
 
+/// Blame-oriented language patterns to warn about (REQ-RPT-004).
+///
+/// Phrases are matched case-insensitively against PIR text fields. The list
+/// targets language that personalises fault rather than describing systems
+/// or decisions; matches are surfaced as warnings, not errors, so authors
+/// can rephrase without blocking automation.
+pub const BLAMEFUL_PHRASES: &[&str] = &[
+    "stupid",
+    "idiotic",
+    "incompetent",
+    "negligent",
+    "lazy",
+    "careless",
+    "should have known",
+    "should've known",
+    "should have caught",
+    "their fault",
+    "his fault",
+    "her fault",
+    "blame",
+    "to blame",
+    "fault of",
+    "screwed up",
+    "messed up",
+    "fucked up",
+    "dropped the ball",
+];
+
+/// Lint a single PIR for blame-oriented language. Returns warning issues.
+pub fn lint_language(pir: &Pir) -> Vec<Issue> {
+    let mut out = Vec::new();
+    let fields: [(&str, &str); 4] = [
+        ("problem_statement", &pir.problem_statement),
+        ("impact", pir.impact.as_deref().unwrap_or("")),
+        ("root_cause", pir.root_cause.as_deref().unwrap_or("")),
+        ("summary", pir.summary.as_deref().unwrap_or("")),
+    ];
+    for (label, text) in fields {
+        scan_blameful(pir.number, label, text, &mut out);
+    }
+    for (i, w) in pir.five_whys.iter().enumerate() {
+        scan_blameful(
+            pir.number,
+            &format!("five_whys[{i}].question"),
+            &w.question,
+            &mut out,
+        );
+        scan_blameful(
+            pir.number,
+            &format!("five_whys[{i}].answer"),
+            &w.answer,
+            &mut out,
+        );
+    }
+    for ev in &pir.timeline {
+        if let Some(d) = &ev.description {
+            scan_blameful(pir.number, "timeline", d, &mut out);
+        }
+    }
+    for v in &pir.what_went_wrong {
+        scan_blameful(pir.number, "what_went_wrong", v, &mut out);
+    }
+    for v in &pir.what_went_well {
+        scan_blameful(pir.number, "what_went_well", v, &mut out);
+    }
+    for v in &pir.contributing_factors {
+        scan_blameful(pir.number, "contributing_factors", v, &mut out);
+    }
+    out
+}
+
+/// Lint every PIR in the repository for blame-oriented language.
+pub fn lint_repository_language(repo: &Repository) -> Result<LintReport> {
+    let pirs = repo.list()?;
+    let mut report = LintReport::default();
+    for p in &pirs {
+        report.issues.extend(lint_language(p));
+    }
+    Ok(report)
+}
+
+fn scan_blameful(number: u32, field: &str, text: &str, out: &mut Vec<Issue>) {
+    if text.is_empty() {
+        return;
+    }
+    let lower = text.to_lowercase();
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for phrase in BLAMEFUL_PHRASES {
+        if lower.contains(phrase) && seen.insert(*phrase) {
+            out.push(Issue::warning(
+                Some(number),
+                format!("{field}: blame-oriented phrase \"{phrase}\""),
+            ));
+        }
+    }
+}
+
 /// Validate that a PIR is ready to move to `Reviewed`. Returns missing items.
 pub fn review_gate(pir: &Pir) -> Vec<String> {
     let mut missing = Vec::new();
