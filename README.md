@@ -43,6 +43,11 @@ pirs list -l
 pirs show 1
 pirs actions --owner "GitHub Copilot"
 pirs doctor
+pirs doctor --language          # warn on blame-oriented phrasing
+pirs generate report 1          # render a single PIR as Markdown
+pirs generate actions           # cross-PIR action register
+pirs metrics                    # incident counts, TTD/TTR, recurring tags
+pirs metrics --json             # machine-readable form
 pirs export json > pirs.json
 pirs export json --redact > pirs-redacted.json
 pirs import json pirs.json --dry-run
@@ -70,7 +75,8 @@ PIRS/
 ## Implemented (this bootstrap)
 
 - `init`, `new`, `list`, `show`, `search`, `status`, `why add`, `action add|close`,
-  `actions`, `timeline add`, `people add`, `link`, `doctor` (+ `--review-gate`),
+  `actions`, `timeline add`, `people add`, `link`, `doctor` (+ `--review-gate`,
+  `--language`), `generate report`, `generate actions`, `metrics`,
   `export json`, `config`, `template list|show`, `run --on-fail create|append|none`.
 - `mcp serve` — MCP server exposing 6 read tools (`list_pirs`, `get_pir`,
   `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`)
@@ -82,15 +88,14 @@ PIRS/
 - YAML frontmatter parser, atomic file writes, ISO-8601 duration derivation.
 - JSON-PIR v1 schema, bulk/single export, redacted export (`--redact`), and
   import from files or stdin with dry-run and overwrite handling.
-- 30 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
-  REQ-TIME-003 and the MCP server lifecycle.
+- 46 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
+  REQ-RPT-001..004, REQ-TIME-003 and the MCP server lifecycle.
 
 ## Not yet implemented
 
-- Reports: `generate report`, `generate actions`, `metrics`, blameless
-  language audit (`doctor --language`).
 - File locking around `next_number()` (basic atomic write only).
 - Shell completions, mdBook documentation, fixture corpus.
+- MCP `get_incident_metrics` and `suggest_related_pirs` tools.
 
 ## License
 

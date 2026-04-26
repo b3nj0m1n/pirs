@@ -173,6 +173,9 @@ enum Commands {
         /// Validate that PIR `<N>` is ready for `Reviewed`
         #[arg(long, value_name = "N")]
         review_gate: Option<u32>,
+        /// Audit PIR text for blame-oriented language (warnings)
+        #[arg(long)]
+        language: bool,
     },
 
     /// Export PIRs as JSON-PIR
@@ -215,6 +218,15 @@ enum Commands {
         #[command(subcommand)]
         sub: McpSub,
     },
+
+    /// Generate Markdown reports
+    Generate {
+        #[command(subcommand)]
+        sub: GenerateSub,
+    },
+
+    /// Summarize repository-wide incident metrics
+    Metrics,
 
     /// Run a wrapped command and optionally create a PIR on failure
     Run {
@@ -321,6 +333,17 @@ enum TemplateSub {
     List,
     /// Print a built-in template body
     Show { name: String },
+}
+
+#[derive(Subcommand)]
+enum GenerateSub {
+    /// Render a single PIR as a Markdown report
+    Report {
+        /// PIR number or fuzzy query
+        query: String,
+    },
+    /// Render a cross-PIR action register
+    Actions,
 }
 
 fn main() -> Result<()> {
@@ -436,7 +459,8 @@ fn main() -> Result<()> {
         Commands::Doctor {
             warnings_as_errors,
             review_gate,
-        } => commands::doctor::run(&cwd, warnings_as_errors, review_gate),
+            language,
+        } => commands::doctor::run(&cwd, warnings_as_errors, review_gate, language),
         Commands::Export {
             format,
             pir,
@@ -468,6 +492,11 @@ fn main() -> Result<()> {
                 http,
             ),
         },
+        Commands::Generate { sub } => match sub {
+            GenerateSub::Report { query } => commands::generate::report(&cwd, &query),
+            GenerateSub::Actions => commands::generate::actions(&cwd),
+        },
+        Commands::Metrics => commands::metrics::run(&cwd, cli.json),
         Commands::Run {
             on_fail,
             pir_target,
