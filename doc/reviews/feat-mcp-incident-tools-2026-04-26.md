@@ -8,7 +8,7 @@ Scope: `main..HEAD`
 
 - `rustfmt --edition 2024 --check crates/pirs-core/src/related.rs crates/pirs-core/tests/related.rs crates/pirs/src/mcp.rs crates/pirs/tests/mcp.rs`: passed
 - `cargo clippy --all-targets --all-features -- -D warnings`: passed
-- `cargo test --workspace`: passed, 58 tests
+- `cargo test --workspace`: passed, 59 tests after review follow-up coverage
 - `mdbook build book`: passed
 
 ## Code Review Report
@@ -129,9 +129,28 @@ Approve for merge from a security perspective.
 
 ## Follow-Up Candidates
 
+- Consider confidentiality-aware suppression for `tags` and `shared_tags` in related suggestions. The feature does not return forbidden PIR body fields, but free-form tags can still contain sensitive customer, codename, or ticket metadata.
 - Tighten `extract_numbers` to match PIR-shaped relationship URIs only.
 - Consider preserving more internal score resolution before emitting the external capped 0..100 score.
+- Revisit filter typo behavior separately from PIR content semantics: enum parsers intentionally support custom values, but tool filters may benefit from canonical validation or warnings for likely typos.
+- Add a scaling note or benchmark fixture before broad external advertisement; related suggestion scoring is intentionally O(N) per ADR-0012.
 - Consider schema-level default metadata if the MCP framework supports it later.
+
+## Final Pre-Mortem
+
+Thesis: the branch is safe to merge because the new MCP tools are additive read tools, implemented as thin adapters over `pirs-core`, covered by core and MCP tests, documented, and verified by rustfmt, clippy, tests, and mdBook.
+
+Pre-mortem result: proceed with merge, with tracked follow-ups before broad external advertisement.
+
+Strongest failure modes identified:
+
+1. Tag values can still expose sensitive metadata even though body/root-cause/timeline/5 Whys/action text is structurally excluded.
+2. Loose digit extraction from relationship links can inflate `has_pir_link` and misrank suggestions.
+3. Score saturation at 100 can collapse top-ranked candidates to PIR-number ordering.
+4. O(N) repository parsing and tokenization can become slow on large PIR repositories or agent loops.
+5. Infallible custom enum parsing preserves custom values but can make typo filters look like authoritative zero-result scopes.
+
+None of these invalidate REQ-MCP-003A/B/C or create a data-mutation risk. They are reversible scoring, privacy-surface, and ergonomics refinements.
 
 ## Rollout And Rollback
 
