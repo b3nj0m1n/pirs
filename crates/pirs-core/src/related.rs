@@ -271,10 +271,11 @@ fn extract_numbers(text: &str) -> Vec<u32> {
             current.clear();
         }
     }
-    if !current.is_empty() {
-        if let Ok(number) = current.parse::<u32>() {
-            numbers.push(number);
-        }
+    if current.is_empty() {
+        return numbers;
+    }
+    if let Ok(number) = current.parse::<u32>() {
+        numbers.push(number);
     }
     numbers
 }
