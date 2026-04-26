@@ -228,6 +228,16 @@ enum Commands {
     /// Summarize repository-wide incident metrics
     Metrics,
 
+    /// Generate shell completion scripts
+    Completions {
+        /// Target shell
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+        /// Write the script into this directory instead of stdout
+        #[arg(long, value_name = "DIR")]
+        out_dir: Option<PathBuf>,
+    },
+
     /// Run a wrapped command and optionally create a PIR on failure
     Run {
         /// What to do on failure: `create` (default) or `none`
@@ -497,6 +507,9 @@ fn main() -> Result<()> {
             GenerateSub::Actions => commands::generate::actions(&cwd),
         },
         Commands::Metrics => commands::metrics::run(&cwd, cli.json),
+        Commands::Completions { shell, out_dir } => {
+            commands::completions::run(<Cli as clap::CommandFactory>::command(), shell, out_dir)
+        }
         Commands::Run {
             on_fail,
             pir_target,

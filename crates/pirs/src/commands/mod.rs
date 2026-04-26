@@ -1,4 +1,5 @@
 pub mod action;
+pub mod completions;
 pub mod config;
 pub mod doctor;
 pub mod export;

@@ -88,13 +88,18 @@ PIRS/
 - YAML frontmatter parser, atomic file writes, ISO-8601 duration derivation.
 - JSON-PIR v1 schema, bulk/single export, redacted export (`--redact`), and
   import from files or stdin with dry-run and overwrite handling.
+- Shell completions for bash/zsh/fish/powershell/elvish via
+  `pirs completions <shell> [--out-dir DIR]` (REQ-COMP-001..003).
+- mdBook user documentation under `book/` (REQ-DOC-005..009,
+  REQ-DOC-BOOK-001) — build with `mdbook build book`.
+- Hand-curated PIR fixture corpus under `tests/fixtures/pir-corpus/` covering
+  every incident type (REQ-FIX-001..003).
 - 46 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
   REQ-RPT-001..004, REQ-TIME-003 and the MCP server lifecycle.
 
 ## Not yet implemented
 
 - File locking around `next_number()` (basic atomic write only).
-- Shell completions, mdBook documentation, fixture corpus.
 - MCP `get_incident_metrics` and `suggest_related_pirs` tools.
 
 ## License

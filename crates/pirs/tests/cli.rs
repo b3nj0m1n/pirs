@@ -801,3 +801,35 @@ fn doctor_without_language_flag_does_not_warn_on_blame_phrases() {
         .success()
         .stdout(predicate::str::contains("blame-oriented").not());
 }
+
+// ---- REQ-COMP-001..003: shell completions (ADR-0009) ----
+
+#[test]
+fn req_comp_001_completions_bash_emits_script_to_stdout() {
+    pirs()
+        .args(["completions", "bash"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("_pirs"))
+        .stdout(predicate::str::contains("COMPREPLY"));
+}
+
+#[test]
+fn req_comp_002_completions_out_dir_writes_canonical_filename() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let dir = temp.child("comp");
+    pirs()
+        .args(["completions", "zsh", "--out-dir"])
+        .arg(dir.path())
+        .assert()
+        .success();
+    dir.child("_pirs").assert(predicate::path::is_file());
+}
+
+#[test]
+fn req_comp_003_unknown_shell_is_rejected() {
+    pirs()
+        .args(["completions", "tcsh"])
+        .assert()
+        .failure();
+}
