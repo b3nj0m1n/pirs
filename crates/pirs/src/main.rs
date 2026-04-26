@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 mod commands;
+mod mcp;
 
 #[derive(Parser)]
 #[command(name = "pirs", version, about = "Manage Post-Incident Reviews (PIRs)")]
@@ -192,6 +193,12 @@ enum Commands {
         sub: TemplateSub,
     },
 
+    /// Serve PIR tools over the Model Context Protocol
+    Mcp {
+        #[command(subcommand)]
+        sub: McpSub,
+    },
+
     /// Run a wrapped command and optionally create a PIR on failure
     Run {
         /// What to do on failure: `create` (default) or `none`
@@ -275,6 +282,19 @@ enum PeopleSub {
         kind: String,
         #[arg(long)]
         role: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum McpSub {
+    /// Start the MCP server (stdio by default)
+    Serve {
+        /// Bind an HTTP transport at this address (requires `http` feature)
+        #[arg(long, value_name = "ADDR")]
+        http: Option<String>,
+        /// Default agent identifier recorded on writes when the tool call omits one
+        #[arg(long, value_name = "NAME")]
+        agent: Option<String>,
     },
 }
 
@@ -406,6 +426,15 @@ fn main() -> Result<()> {
         Commands::Template { sub } => match sub {
             TemplateSub::List => commands::template::list(),
             TemplateSub::Show { name } => commands::template::show(&name),
+        },
+        Commands::Mcp { sub } => match sub {
+            McpSub::Serve { http, agent } => mcp::serve(
+                mcp::PirState {
+                    root: cwd.clone(),
+                    agent,
+                },
+                http,
+            ),
         },
         Commands::Run {
             on_fail,
