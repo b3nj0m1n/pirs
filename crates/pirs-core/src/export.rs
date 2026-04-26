@@ -143,9 +143,10 @@ fn validate_import_numbers(pirs: &[Pir]) -> Result<()> {
 fn compile_redaction_patterns(patterns: &[String]) -> Result<Vec<Regex>> {
     patterns
         .iter()
-        .map(|pattern| {
-            Regex::new(pattern).map_err(|err| {
-                Error::ConfigError(format!("invalid redaction pattern `{pattern}`: {err}"))
+        .enumerate()
+        .map(|(index, pattern)| {
+            Regex::new(pattern).map_err(|_| {
+                Error::ConfigError(format!("invalid redaction pattern #{}", index + 1))
             })
         })
         .collect()
@@ -296,5 +297,20 @@ mod tests {
             "captured [REDACTED] in output"
         );
         assert_eq!(value["pir"]["summary"], REDACTED_VALUE);
+    }
+
+    #[test]
+    fn redact_json_value_error_does_not_echo_invalid_pattern() {
+        let mut value = json!({ "pir": { "problem_statement": "token=secret123" } });
+        let privacy = PrivacyConfig {
+            redaction_patterns: vec!["token=secret123[".into()],
+            sensitive_fields: Vec::new(),
+        };
+
+        let err = redact_json_value(&mut value, &privacy).unwrap_err();
+        let message = err.to_string();
+
+        assert!(message.contains("invalid redaction pattern #1"));
+        assert!(!message.contains("token=secret123"));
     }
 }
