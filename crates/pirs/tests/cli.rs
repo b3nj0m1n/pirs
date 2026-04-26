@@ -56,7 +56,11 @@ fn ac_001_init_creates_pir_dir_without_sample_pir() {
 #[test]
 fn ac_002_agent_only_development_incident() {
     let temp = assert_fs::TempDir::new().unwrap();
-    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
 
     pirs()
         .current_dir(temp.path())
@@ -91,7 +95,11 @@ fn ac_002_agent_only_development_incident() {
 #[test]
 fn ac_003_run_on_fail_creates_pir_and_propagates_exit_code() {
     let temp = assert_fs::TempDir::new().unwrap();
-    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
 
     pirs()
         .current_dir(temp.path())
@@ -133,7 +141,11 @@ fn ac_003_run_on_fail_creates_pir_and_propagates_exit_code() {
 #[test]
 fn ac_007_review_gate_blocks_when_incomplete() {
     let temp = assert_fs::TempDir::new().unwrap();
-    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
     pirs()
         .current_dir(temp.path())
         .args([
@@ -161,7 +173,11 @@ fn ac_007_review_gate_blocks_when_incomplete() {
 #[test]
 fn ac_005_006_why_and_action_add() {
     let temp = assert_fs::TempDir::new().unwrap();
-    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
     pirs()
         .current_dir(temp.path())
         .args(["new", "x", "--problem", "broken", "--no-edit"])
@@ -216,7 +232,11 @@ fn ac_005_006_why_and_action_add() {
 #[test]
 fn ac_009_search_finds_problem_statement_text() {
     let temp = assert_fs::TempDir::new().unwrap();
-    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
     pirs()
         .current_dir(temp.path())
         .args([
@@ -244,7 +264,11 @@ fn ac_009_search_finds_problem_statement_text() {
 #[test]
 fn ac_010_doctor_reports_clean_repo() {
     let temp = assert_fs::TempDir::new().unwrap();
-    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
     pirs()
         .current_dir(temp.path())
         .args(["new", "x", "--problem", "y", "--no-edit"])
@@ -260,7 +284,11 @@ fn ac_010_doctor_reports_clean_repo() {
 #[test]
 fn ac_011_export_json_emits_schema_and_pir() {
     let temp = assert_fs::TempDir::new().unwrap();
-    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
     pirs()
         .current_dir(temp.path())
         .args(["new", "Foo", "--problem", "bar", "--no-edit"])
@@ -285,7 +313,11 @@ fn ac_011_export_json_emits_schema_and_pir() {
 #[test]
 fn status_resolved_now_sets_resolved_at_and_duration() {
     let temp = assert_fs::TempDir::new().unwrap();
-    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
     pirs()
         .current_dir(temp.path())
         .args(["new", "x", "--problem", "y", "--no-edit"])

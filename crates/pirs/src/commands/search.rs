@@ -36,7 +36,11 @@ pub fn run(cwd: &Path, query: &str, case_sensitive: bool) -> Result<()> {
         for l in &p.links {
             hay.push_str(&l.uri);
         }
-        let hay_cmp = if case_sensitive { hay.clone() } else { hay.to_lowercase() };
+        let hay_cmp = if case_sensitive {
+            hay.clone()
+        } else {
+            hay.to_lowercase()
+        };
         if hay_cmp.contains(&needle)
             && let Some(path) = p.path
         {

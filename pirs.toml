@@ -1,0 +1,10 @@
+pir_dir = "doc/pir"
+
+[templates]
+
+[privacy]
+redaction_patterns = []
+sensitive_fields = []
+
+[mcp]
+http_enabled = false

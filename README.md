@@ -44,6 +44,13 @@ pirs show 1
 pirs actions --owner "GitHub Copilot"
 pirs doctor
 pirs export json > pirs.json
+
+# expose the same operations to LLM agents over the Model Context Protocol
+pirs mcp serve                                  # stdio (REQ-MCP-001)
+pirs mcp serve --agent "GitHub Copilot"        # default actor for write tools
+# build with HTTP transport enabled (REQ-MCP-006: warns on non-loopback bind):
+#   cargo build --features http
+#   pirs mcp serve --http 127.0.0.1:7878
 ```
 
 ## Workspace
@@ -62,15 +69,20 @@ PIRS/
 - `init`, `new`, `list`, `show`, `search`, `status`, `why add`, `action add|close`,
   `actions`, `timeline add`, `people add`, `link`, `doctor` (+ `--review-gate`),
   `export json`, `config`, `template list|show`, `run --on-fail create|append|none`.
+- `mcp serve` — MCP server exposing 6 read tools (`list_pirs`, `get_pir`,
+  `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`)
+  and 7 write tools (`create_pir`, `append_timeline_event`, `update_status`,
+  `add_why`, `add_action`, `update_action`, `link_evidence`) over stdio, plus
+  optional HTTP transport behind the `http` cargo feature
+  (REQ-MCP-001..006).
 - Built-in templates: `development`, `production`, `security`, `process`, `minimal`.
 - YAML frontmatter parser, atomic file writes, ISO-8601 duration derivation.
 - JSON-PIR v1 schema and bulk/single export.
-- 15 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011 and
-  REQ-TIME-003.
+- 19 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
+  REQ-TIME-003 and the MCP server lifecycle.
 
 ## Not yet implemented
 
-- MCP server (read + write tools).
 - `import json` / redacted export (`--redact`).
 - Reports: `generate report`, `generate actions`, `metrics`, blameless
   language audit (`doctor --language`).

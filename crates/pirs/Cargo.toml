@@ -21,6 +21,18 @@ serde_json.workspace = true
 time.workspace = true
 whoami.workspace = true
 
+# MCP server
+tokio.workspace = true
+tower-mcp.workspace = true
+schemars.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[features]
+default = []
+# Optional HTTP transport for the MCP server (REQ-MCP-001).
+http = ["tower-mcp/http"]
+
 [dev-dependencies]
 assert_cmd.workspace = true
 assert_fs.workspace = true
