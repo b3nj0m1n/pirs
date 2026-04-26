@@ -166,6 +166,40 @@ fn pir_summary(p: &Pir) -> Value {
     })
 }
 
+#[derive(Debug, Clone, Default)]
+struct PirFilters {
+    status: Option<IncidentStatus>,
+    severity: Option<IncidentSeverity>,
+    incident_type: Option<IncidentType>,
+    tag: Option<String>,
+    has_open_actions: bool,
+}
+
+fn filter_pirs<'a>(pirs: &'a [Pir], filters: &PirFilters) -> Vec<&'a Pir> {
+    pirs.iter()
+        .filter(|p| filters.status.as_ref().is_none_or(|s| &p.status == s))
+        .filter(|p| filters.severity.as_ref().is_none_or(|s| &p.severity == s))
+        .filter(|p| {
+            filters
+                .incident_type
+                .as_ref()
+                .is_none_or(|t| &p.incident_type == t)
+        })
+        .filter(|p| {
+            filters
+                .tag
+                .as_ref()
+                .is_none_or(|t| p.tags.iter().any(|x| x == t))
+        })
+        .filter(|p| {
+            !filters.has_open_actions
+                || p.actions
+                    .iter()
+                    .any(|a| !matches!(a.status, ActionStatus::Done | ActionStatus::Cancelled))
+        })
+        .collect()
+}
+
 fn ok_json(value: Value) -> tower_mcp::Result<CallToolResult> {
     let text = serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string());
     Ok(CallToolResult::text(text))
@@ -198,6 +232,27 @@ struct ListPirsInput {
     has_open_actions: bool,
 }
 
+impl From<ListPirsInput> for PirFilters {
+    fn from(input: ListPirsInput) -> Self {
+        Self {
+            status: input
+                .status
+                .as_deref()
+                .map(|s| IncidentStatus::from_str(s).unwrap()),
+            severity: input
+                .severity
+                .as_deref()
+                .map(|s| IncidentSeverity::from_str(s).unwrap()),
+            incident_type: input
+                .incident_type
+                .as_deref()
+                .map(|s| IncidentType::from_str(s).unwrap()),
+            tag: input.tag,
+            has_open_actions: input.has_open_actions,
+        }
+    }
+}
+
 fn tool_list_pirs(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("list_pirs")
         .title("List PIRs")
@@ -213,36 +268,9 @@ fn tool_list_pirs(state: Arc<PirState>) -> tower_mcp::Tool {
                     Ok(p) => p,
                     Err(e) => return err_result(e),
                 };
-                let want_status = input
-                    .status
-                    .as_deref()
-                    .map(|s| IncidentStatus::from_str(s).unwrap());
-                let want_sev = input
-                    .severity
-                    .as_deref()
-                    .map(|s| IncidentSeverity::from_str(s).unwrap());
-                let want_type = input
-                    .incident_type
-                    .as_deref()
-                    .map(|s| IncidentType::from_str(s).unwrap());
-
-                let filtered: Vec<Value> = pirs
-                    .iter()
-                    .filter(|p| want_status.as_ref().is_none_or(|s| &p.status == s))
-                    .filter(|p| want_sev.as_ref().is_none_or(|s| &p.severity == s))
-                    .filter(|p| want_type.as_ref().is_none_or(|t| &p.incident_type == t))
-                    .filter(|p| {
-                        input
-                            .tag
-                            .as_ref()
-                            .is_none_or(|t| p.tags.iter().any(|x| x == t))
-                    })
-                    .filter(|p| {
-                        !input.has_open_actions
-                            || p.actions.iter().any(|a| {
-                                !matches!(a.status, ActionStatus::Done | ActionStatus::Cancelled)
-                            })
-                    })
+                let filters = PirFilters::from(input);
+                let filtered: Vec<Value> = filter_pirs(&pirs, &filters)
+                    .into_iter()
                     .map(pir_summary)
                     .collect();
                 ok_json(json!({ "count": filtered.len(), "pirs": filtered }))
