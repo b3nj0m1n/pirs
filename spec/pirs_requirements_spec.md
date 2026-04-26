@@ -654,7 +654,7 @@ When deserializing `people_involved`, the system shall accept either strings or 
 
 ### 9.3 MCP
 
-- [ ] Implement MCP read tools: `list_pirs`, `get_pir`, `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`, `get_incident_metrics`, `suggest_related_pirs`.
+- [x] Implement MCP read tools: `list_pirs`, `get_pir`, `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`, `get_incident_metrics`, `suggest_related_pirs`.
 - [ ] Implement MCP write tools: `create_pir`, `log_incident`, `append_timeline_event`, `update_status`, `add_why`, `add_action`, `update_action`, `link_evidence`, `finalize_review`.
 - [ ] Record agent attribution for every MCP write.
 - [ ] Add optional HTTP transport with bearer-token authentication.

@@ -78,12 +78,13 @@ PIRS/
   `actions`, `timeline add`, `people add`, `link`, `doctor` (+ `--review-gate`,
   `--language`), `generate report`, `generate actions`, `metrics`,
   `export json`, `config`, `template list|show`, `run --on-fail create|append|none`.
-- `mcp serve` — MCP server exposing 6 read tools (`list_pirs`, `get_pir`,
-  `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`)
+- `mcp serve` — MCP server exposing 8 read tools (`list_pirs`, `get_pir`,
+  `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`,
+  `get_incident_metrics`, `suggest_related_pirs`)
   and 7 write tools (`create_pir`, `append_timeline_event`, `update_status`,
   `add_why`, `add_action`, `update_action`, `link_evidence`) over stdio, plus
   optional HTTP transport behind the `http` cargo feature
-  (REQ-MCP-001..006).
+  (REQ-MCP-001..006, REQ-MCP-003A..003C).
 - Built-in templates: `development`, `production`, `security`, `process`, `minimal`.
 - YAML frontmatter parser, atomic file writes, ISO-8601 duration derivation.
 - JSON-PIR v1 schema, bulk/single export, redacted export (`--redact`), and
@@ -94,13 +95,12 @@ PIRS/
   REQ-DOC-BOOK-001) — build with `mdbook build book`.
 - Hand-curated PIR fixture corpus under `tests/fixtures/pir-corpus/` covering
   every incident type (REQ-FIX-001..003).
-- 46 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
+- 58 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
   REQ-RPT-001..004, REQ-TIME-003 and the MCP server lifecycle.
 
 ## Not yet implemented
 
 - File locking around `next_number()` (basic atomic write only).
-- MCP `get_incident_metrics` and `suggest_related_pirs` tools.
 
 ## License
 

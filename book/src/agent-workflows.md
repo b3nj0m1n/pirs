@@ -90,11 +90,18 @@ pirs mcp serve                       # stdio, agent identity required per call
 pirs mcp serve --agent "Copilot"     # set a default actor for write tools
 ```
 
-Available tools include `create_pir`, `list_pirs`, `get_pir`, `search_pirs`,
-`append_timeline_event`, `add_why`, `add_action`, `update_action`,
-`update_status`, `link_evidence`, `get_open_actions`, `get_repository_info`,
-and `validate_pir`. Each tool returns a JSON envelope with `status`, the
-created or updated PIR/action identifiers, and any warnings.
+Available read tools include `list_pirs`, `get_pir`, `search_pirs`,
+`get_open_actions`, `get_repository_info`, `validate_pir`,
+`get_incident_metrics`, and `suggest_related_pirs`. `get_incident_metrics`
+returns the same aggregate counts and timing statistics as `pirs metrics`, with
+optional list-style filters. `suggest_related_pirs` returns bounded,
+privacy-safe suggestions by PIR number, score, and non-secret match signals;
+it does not return PIR body excerpts.
+
+Available write tools include `create_pir`, `append_timeline_event`,
+`add_why`, `add_action`, `update_action`, `update_status`, and
+`link_evidence`. Tool responses are JSON text payloads suitable for direct
+agent parsing.
 
 ## Best practices for agents
 
