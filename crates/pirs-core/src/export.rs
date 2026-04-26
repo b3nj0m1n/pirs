@@ -7,7 +7,8 @@ use serde_json::Value;
 use std::collections::HashSet;
 
 pub const JSON_PIR_VERSION: &str = "1";
-pub const JSON_PIR_SCHEMA: &str = "https://example.invalid/schema/json-pir/v1.json";
+pub const JSON_PIR_SCHEMA: &str =
+    "https://raw.githubusercontent.com/b3nj0m1n/pirs/main/schema/json-pir/v1.json";
 pub const REDACTED_VALUE: &str = "[REDACTED]";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,7 +75,13 @@ pub fn export_repository(repo: &Repository, tool_version: &str) -> Result<JsonPi
 }
 
 pub fn parse_json_pirs(input: &str) -> Result<Vec<Pir>> {
-    let document: JsonPirDocument = serde_json::from_str(input)?;
+    let document: JsonPirDocument = serde_json::from_str(input).map_err(|err| {
+        Error::Validation(format!(
+            "invalid JSON-PIR input at line {}, column {}",
+            err.line(),
+            err.column()
+        ))
+    })?;
     let mut pirs = match document {
         JsonPirDocument::Single(single) => {
             let single = *single;
@@ -224,6 +231,17 @@ mod tests {
 
         let err = parse_json_pirs(&raw.to_string()).unwrap_err();
         assert!(err.to_string().contains("unsupported JSON-PIR version"));
+    }
+
+    #[test]
+    fn parse_json_pirs_error_does_not_echo_input() {
+        let raw = r#"{"problem_statement":"token=secret123", "#;
+
+        let err = parse_json_pirs(raw).unwrap_err();
+        let message = err.to_string();
+
+        assert!(message.contains("invalid JSON-PIR input"));
+        assert!(!message.contains("token=secret123"));
     }
 
     #[test]

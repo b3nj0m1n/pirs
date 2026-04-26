@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.invalid/schema/json-pir/v1.json",
+  "$id": "https://raw.githubusercontent.com/b3nj0m1n/pirs/main/schema/json-pir/v1.json",
   "title": "JSON-PIR v1",
   "description": "Serialized Post-Incident Review for `pirs` export/import.",
   "type": "object",
