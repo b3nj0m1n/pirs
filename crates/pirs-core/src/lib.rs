@@ -1,0 +1,29 @@
+//! # pirs-core
+//!
+//! Core library for managing Post-Incident Reviews (PIRs).
+//!
+//! PIRs are stored as Markdown files with structured YAML frontmatter under
+//! `doc/pir/` by default. The library provides parsing, repository CRUD, lint
+//! and review-gate validation, templating, and JSON-PIR export.
+
+mod config;
+mod error;
+pub mod export;
+pub mod lint;
+mod parse;
+mod repository;
+pub mod template;
+mod types;
+
+pub use config::{
+    CONFIG_FILE, Config, ConfigSource, DEFAULT_PIR_DIR, DiscoveredConfig, ENV_PIR_DIRECTORY,
+    ENV_PIRS_CONFIG, LEGACY_CONFIG_FILE, McpConfig, PrivacyConfig, TemplateConfig, discover,
+};
+pub use error::{Error, Result};
+pub use lint::{Issue, IssueSeverity, LintReport, lint_pir, lint_repository, review_gate};
+pub use parse::Parser;
+pub use repository::Repository;
+pub use types::{
+    ActionItem, ActionStatus, Actor, ActorKind, Confidentiality, EvidenceLink, IncidentSeverity,
+    IncidentStatus, IncidentType, LinkKind, Pir, TimelineEvent, TimelineEventType, WhyEntry, slug,
+};

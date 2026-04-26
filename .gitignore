@@ -1,0 +1,7 @@
+/target
+/tmp
+.tmp
+.claude/
+.mcp.json
+CLAUDE.md
+.DS_Store

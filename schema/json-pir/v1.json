@@ -1,0 +1,182 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/schema/json-pir/v1.json",
+  "title": "JSON-PIR v1",
+  "description": "Serialized Post-Incident Review for `pirs` export/import.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/definitions/Single" },
+    { "$ref": "#/definitions/Bulk" }
+  ],
+  "definitions": {
+    "Single": {
+      "type": "object",
+      "required": ["schema", "version", "pir"],
+      "properties": {
+        "schema": { "type": "string" },
+        "version": { "type": "string", "const": "1" },
+        "pir": { "$ref": "#/definitions/Pir" }
+      }
+    },
+    "Bulk": {
+      "type": "object",
+      "required": ["schema", "version", "tool", "generated_at", "repository", "pirs"],
+      "properties": {
+        "schema": { "type": "string" },
+        "version": { "type": "string", "const": "1" },
+        "tool": {
+          "type": "object",
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "type": "string" },
+            "version": { "type": "string" }
+          }
+        },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "repository": {
+          "type": "object",
+          "required": ["root", "pir_dir"],
+          "properties": {
+            "root": { "type": "string" },
+            "pir_dir": { "type": "string" }
+          }
+        },
+        "pirs": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Pir" }
+        }
+      }
+    },
+    "Pir": {
+      "type": "object",
+      "required": ["number", "title", "status", "severity", "incident_type", "problem_statement"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["Open", "Investigating", "Mitigated", "Resolved", "Reviewed", "Cancelled"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
+        "incident_type": {
+          "type": "string",
+          "enum": ["Development", "Production", "Security", "Process"]
+        },
+        "problem_statement": { "type": "string" },
+        "occurred_at": { "type": ["string", "null"], "format": "date-time" },
+        "detected_at": { "type": ["string", "null"], "format": "date-time" },
+        "resolved_at": { "type": ["string", "null"], "format": "date-time" },
+        "time_to_discover": { "type": ["string", "null"] },
+        "time_to_resolve": { "type": ["string", "null"] },
+        "total_duration": { "type": ["string", "null"] },
+        "detection_method": { "type": ["string", "null"] },
+        "people_involved": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Actor" }
+        },
+        "timeline": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TimelineEvent" }
+        },
+        "five_whys": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/WhyEntry" }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ActionItem" }
+        },
+        "links": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/EvidenceLink" }
+        },
+        "impact": { "type": ["string", "null"] },
+        "root_cause": { "type": ["string", "null"] },
+        "contributing_factors": { "type": "array", "items": { "type": "string" } },
+        "what_went_well": { "type": "array", "items": { "type": "string" } },
+        "what_went_wrong": { "type": "array", "items": { "type": "string" } },
+        "where_we_got_lucky": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "confidentiality": {
+          "type": "string",
+          "enum": ["Public", "Internal", "Restricted"]
+        },
+        "summary": { "type": ["string", "null"] }
+      }
+    },
+    "Actor": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["human", "agent", "team", "system"] },
+        "role": { "type": ["string", "null"] },
+        "email": { "type": ["string", "null"] },
+        "handle": { "type": ["string", "null"] },
+        "directory_id": { "type": ["string", "null"] },
+        "team_id": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] },
+        "provider": { "type": ["string", "null"] },
+        "session_id": { "type": ["string", "null"] },
+        "tool": { "type": ["string", "null"] }
+      }
+    },
+    "TimelineEvent": {
+      "type": "object",
+      "required": ["at", "actor", "type"],
+      "properties": {
+        "at": { "type": "string", "format": "date-time" },
+        "actor": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["detected", "investigated", "mitigated", "resolved", "communicated", "escalated", "note"]
+        },
+        "description": { "type": ["string", "null"] }
+      }
+    },
+    "WhyEntry": {
+      "type": "object",
+      "required": ["question", "answer"],
+      "properties": {
+        "question": { "type": "string" },
+        "answer": { "type": "string" }
+      }
+    },
+    "ActionItem": {
+      "type": "object",
+      "required": ["id", "description", "owner"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ACT-\\d{3,}$" },
+        "description": { "type": "string" },
+        "owner": { "type": "string" },
+        "owner_type": { "type": "string", "enum": ["human", "agent", "team", "system"] },
+        "due": { "type": ["string", "null"] },
+        "status": {
+          "type": "string",
+          "enum": ["Open", "InProgress", "Blocked", "Done", "Cancelled"]
+        },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "EvidenceLink": {
+      "type": "object",
+      "required": ["uri", "kind"],
+      "properties": {
+        "uri": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "Commit", "PullRequest", "Issue", "Log", "Dashboard", "Runbook",
+            "Deployment", "TestRun", "ADR", "PIR",
+            "RelatedTo", "CausedBy", "DuplicateOf", "FollowUpTo"
+          ]
+        },
+        "description": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

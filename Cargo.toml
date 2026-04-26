@@ -1,0 +1,53 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/joshrotenberg/pirs"
+
+[workspace.dependencies]
+# Core
+thiserror = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+toml = "0.8"
+
+# Markdown
+pulldown-cmark = "0.12"
+
+# Templates
+minijinja = { version = "2", features = ["loader"] }
+
+# Filesystem
+walkdir = "2.5"
+
+# Date/time
+time = { version = "0.3", features = ["local-offset", "formatting", "macros", "serde", "parsing"] }
+
+# Utilities
+fuzzy-matcher = "0.3"
+regex = "1"
+
+# CLI only
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env", "string"] }
+clap_complete = "4"
+edit = "0.1"
+whoami = "1"
+
+# Internal
+pirs-core = { path = "crates/pirs-core", version = "0.1.0" }
+
+# Testing
+assert_cmd = "2"
+assert_fs = "1"
+predicates = "3"
+tempfile = "3"
+
+[profile.dist]
+inherits = "release"
+lto = "thin"
