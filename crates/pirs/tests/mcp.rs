@@ -403,6 +403,43 @@ fn mcp_get_incident_metrics_returns_filtered_metrics_and_text() {
 }
 
 #[test]
+fn mcp_get_incident_metrics_accepts_custom_filter_values() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    init_repo(&temp);
+
+    let mut reqs = initialize_seq();
+    reqs.push(rpc_request(
+        2,
+        "tools/call",
+        json!({
+            "name": "create_pir",
+            "arguments": {
+                "title": "Custom severity incident",
+                "problem_statement": "A non-standard severity needs aggregate filtering",
+                "severity": "major",
+                "incident_type": "tooling"
+            }
+        }),
+    ));
+    reqs.push(rpc_request(
+        3,
+        "tools/call",
+        json!({
+            "name": "get_incident_metrics",
+            "arguments": { "severity": "major", "incident_type": "tooling" }
+        }),
+    ));
+
+    let responses = drive_server(&temp, &reqs);
+    let text = extract_tool_text(find_response(&responses, 3).unwrap()).unwrap();
+    let v: Value = serde_json::from_str(&text).unwrap();
+
+    assert_eq!(v["filters"]["severity"], json!("major"));
+    assert_eq!(v["filters"]["incident_type"], json!("tooling"));
+    assert_eq!(v["metrics"]["total"], json!(1));
+}
+
+#[test]
 fn mcp_suggest_related_pirs_returns_ranked_privacy_safe_suggestions() {
     let temp = assert_fs::TempDir::new().unwrap();
     init_repo(&temp);

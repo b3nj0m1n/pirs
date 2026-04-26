@@ -95,7 +95,7 @@ PIRS/
   REQ-DOC-BOOK-001) — build with `mdbook build book`.
 - Hand-curated PIR fixture corpus under `tests/fixtures/pir-corpus/` covering
   every incident type (REQ-FIX-001..003).
-- 58 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
+- 59 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
   REQ-RPT-001..004, REQ-TIME-003 and the MCP server lifecycle.
 
 ## Not yet implemented
