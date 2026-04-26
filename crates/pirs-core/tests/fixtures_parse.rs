@@ -3,11 +3,13 @@
 //! Walks every Markdown file under `tests/fixtures/pir-corpus/` and
 //! asserts that:
 //!
-//! * It parses successfully through `pirs_core::parse::Parser`.
+//! * It parses successfully through `pirs_core::Parser`.
 //! * Each canonical incident type has at least one fixture.
-//! * Exactly one `5 Whys` entry per fixture is tagged `as_root_cause`.
-//! * No common real-secret prefixes (`AKIA…`, `ghp_…`, `xox…`) appear
-//!   anywhere in the fixture content.
+//! * Each fixture declares a PIR-level `root_cause` and a non-empty
+//!   `5 Whys` chain.
+//! * The `NNNN-` filename prefix matches the frontmatter `number:`.
+//! * No common real-secret prefixes (AWS keys, GitHub tokens, Slack
+//!   tokens, PEM private keys) appear anywhere in the fixture content.
 
 use pirs_core::{IncidentType, Parser};
 use std::path::{Path, PathBuf};
@@ -52,6 +54,18 @@ fn req_fix_001_every_fixture_parses() {
             pir.number >= 1,
             "{} should have a non-zero PIR number",
             path.display()
+        );
+        let filename = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+        let expected_prefix = format!("{:04}-", pir.number);
+        assert!(
+            filename.starts_with(&expected_prefix),
+            "{} filename must start with {} to match `number: {}`",
+            path.display(),
+            expected_prefix,
+            pir.number
         );
         assert!(
             pir.root_cause.is_some(),

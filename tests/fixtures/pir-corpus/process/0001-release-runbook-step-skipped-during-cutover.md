@@ -1,5 +1,5 @@
 ---
-number: 4
+number: 1
 title: 'Release runbook step skipped during cutover'
 status: Resolved
 severity: Low
@@ -13,13 +13,12 @@ occurred_at: 2026-04-18T15:00:00Z
 detected_at: 2026-04-18T16:30:00Z
 resolved_at: 2026-04-18T17:10:00Z
 detection_method: Post-release review
-people_invoked: []
 people_involved:
   - name: Release manager
-    kind: human
+    type: human
     role: rollout owner
   - name: Database team
-    kind: team
+    type: team
     role: schema reviewer
 timeline:
   - at: 2026-04-18T15:00:00Z
@@ -73,7 +72,7 @@ tags:
 confidentiality: Internal
 ---
 
-# 4. Release runbook step skipped during cutover
+# 1. Release runbook step skipped during cutover
 
 > Type: process · Severity: low
 

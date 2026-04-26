@@ -1,5 +1,5 @@
 ---
-number: 2
+number: 1
 title: 'Checkout latency spike during evening peak'
 status: Reviewed
 severity: High
@@ -14,13 +14,13 @@ resolved_at: 2026-03-14T20:14:00Z
 detection_method: Synthetic monitor + on-call page
 people_involved:
   - name: On-call SRE
-    kind: human
+    type: human
     role: incident commander
   - name: Payments team
-    kind: team
+    type: team
     role: subject matter expert
   - name: GitHub Copilot
-    kind: agent
+    type: agent
     role: log triage
 timeline:
   - at: 2026-03-14T19:42:00Z
@@ -76,7 +76,7 @@ tags:
 confidentiality: Internal
 ---
 
-# 2. Checkout latency spike during evening peak
+# 1. Checkout latency spike during evening peak
 
 > Type: production · Severity: high
 

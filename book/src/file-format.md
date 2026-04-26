@@ -96,7 +96,7 @@ parse, so authors should not edit them manually.
 
 | Field | Element type |
 |---|---|
-| `people_involved` | `Actor { name, kind, role }` where `kind` ∈ `human`, `agent`, `team`, `system`. |
+| `people_involved` | `Actor { name, type, role }` where `type` ∈ `human`, `agent`, `team`, `system`. |
 | `timeline` | `TimelineEvent { at, actor, type, description }` ordered by `at`. |
 | `five_whys` | `WhyEntry { question, answer }` ordered by appearance. |
 | `actions` | `ActionItem { id, description, owner, owner_type, due, status, evidence, notes }`. |

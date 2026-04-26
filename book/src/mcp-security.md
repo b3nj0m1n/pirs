@@ -7,7 +7,7 @@ exposing the MCP server beyond a single local agent.
 ## Default posture: stdio only
 
 `pirs mcp serve` defaults to stdio transport. The HTTP transport is gated
-behind the `http-transport` Cargo feature (see
+behind the `http` Cargo feature (see
 [ADR-0003](https://github.com/joshrotenberg/pirs/blob/main/doc/adr/0003-stdio-transport-default-http-gated-behind-cargo-feature.md)).
 Rationale:
 
@@ -17,19 +17,27 @@ Rationale:
 - HTTP introduces a new trust boundary, requires authentication and
   authorisation, and risks exposing PIR contents over the network.
 
-If you need HTTP, build with `cargo build --features http-transport` and
-treat the resulting binary as if it were any other HTTP service: terminate
-TLS, add authentication in front, and bind only to trusted interfaces.
+If you need HTTP, build with `cargo build --features http` and treat the
+resulting binary as if it were any other HTTP service: terminate TLS, add
+authentication in front, and bind only to trusted interfaces.
 
 ## What the server can do
 
-Every CLI write operation is mirrored as an MCP tool. An attacker with a tool
-channel can:
+Most CLI repository operations are mirrored as MCP tools. An attacker with a
+tool channel can:
 
-- Create, modify, and (with `pir_status_set`) advance arbitrary PIRs.
-- Read all on-disk PIR contents, including `Confidential` ones.
-- Trigger `pir_export_json` and read raw JSON.
-- Trigger `pir_import_json` to inject crafted PIRs.
+- List and read PIRs via tools such as `list_pirs`, `get_pir`, and
+  `search_pirs`.
+- Create arbitrary PIRs via `create_pir`.
+- Modify existing PIRs through `append_timeline_event`, `add_why`,
+  `add_action`, `update_action`, `update_status`, and `link_evidence`.
+- Read all on-disk PIR contents that the repository exposes, including
+  `Confidential` ones, via the read tools above.
+- Inspect open actions and repository configuration via `get_open_actions`
+  and `get_repository_info`.
+
+JSON export and import are intentionally **not** exposed as MCP tools today;
+they remain CLI-only.
 
 The server **cannot**:
 
@@ -86,8 +94,8 @@ If you need stronger guarantees, scrub the input before passing it to
 
 Before letting an LLM agent talk to a long-running MCP server:
 
-1. Confirm the binary was built without `http-transport`, or that HTTP is
-   bound to localhost behind authentication.
+1. Confirm the binary was built without `http`, or that HTTP is bound to
+   localhost behind authentication.
 2. Set `--agent "<canonical name>"` so writes are attributed.
 3. Audit `pirs.toml`'s `[privacy]` block; add any project-specific token
    formats.

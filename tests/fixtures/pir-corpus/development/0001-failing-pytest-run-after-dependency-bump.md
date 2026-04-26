@@ -15,7 +15,7 @@ resolved_at: 2026-04-20T10:01:00Z
 detection_method: CI
 people_involved:
   - name: GitHub Copilot
-    kind: agent
+    type: agent
     role: investigator
 timeline:
   - at: 2026-04-20T09:14:30Z

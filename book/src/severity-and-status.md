@@ -21,26 +21,32 @@ production database offline).
 
 ## Status lifecycle
 
-`status` is a finite state machine. The CLI enforces the legal transitions
-shown below; out-of-order transitions are rejected with a clear error.
+`status` records where the PIR is in its lifecycle. The CLI uses these
+values for filtering, metrics, and the `Reviewed` review-gate check; it
+does **not** enforce a strict predecessor finite state machine, so any
+sequence is technically allowed. Treat the order below as the conventional
+flow.
 
 ```
-Detected ─► Investigating ─► Mitigated ─► Resolved ─► Reviewed ─► Archived
+Open ─► Investigating ─► Mitigated ─► Resolved ─► Reviewed
                                   │
                                   └──── (skip Mitigated only when fix is the mitigation)
+
+Cancelled is a terminal state for incidents that turn out to be non-issues.
 ```
 
-| Status | Definition | Required to enter |
+| Status | Definition | Conventionally requires |
 |---|---|---|
-| `Detected` | Incident is logged but unconfirmed. | `problem_statement` set. |
-| `Investigating` | Active diagnosis. | `Detected` predecessor and at least one timeline event. |
-| `Mitigated` | Symptoms reduced to acceptable level; root cause may still be open. | Mitigation timeline event. |
+| `Open` | Incident is logged but unconfirmed. | `problem_statement` set. |
+| `Investigating` | Active diagnosis. | At least one timeline event. |
+| `Mitigated` | Symptoms reduced to acceptable level; root cause may still be open. | A mitigation timeline event. |
 | `Resolved` | Underlying issue addressed; service nominal. | `resolved_at` set. |
-| `Reviewed` | Postmortem complete; lessons recorded. | `root_cause` populated, ≥1 action item, `resolved_at`, no doctor errors. |
-| `Archived` | Closed for active reference; remains searchable. | Manual transition only. |
+| `Reviewed` | Postmortem complete; lessons recorded. | `problem_statement`, ≥1 timeline event, ≥1 5-Whys entry, ≥1 action item, `resolved_at` (enforced by `pirs doctor --review-gate`). |
+| `Cancelled` | Incident determined not to be real. | `--reason` supplied to `pirs status`. |
 
 `pirs doctor --review-gate <N>` reports exactly which prerequisites are
-missing for the `Reviewed` transition.
+missing for the `Reviewed` transition. Recording a `root_cause` is strongly
+recommended for `Reviewed` PIRs but is not currently enforced by the gate.
 
 ## Incident type
 

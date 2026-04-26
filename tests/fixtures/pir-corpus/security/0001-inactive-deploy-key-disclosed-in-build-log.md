@@ -1,5 +1,5 @@
 ---
-number: 3
+number: 1
 title: 'Inactive deploy key disclosed in build log'
 status: Resolved
 severity: Medium
@@ -15,10 +15,10 @@ resolved_at: 2026-04-03T11:58:00Z
 detection_method: Secret-scanning alert
 people_involved:
   - name: Security on-call
-    kind: human
+    type: human
     role: incident commander
   - name: Platform team
-    kind: team
+    type: team
     role: rotation
 timeline:
   - at: 2026-04-03T11:08:00Z
@@ -78,7 +78,7 @@ tags:
 confidentiality: Confidential
 ---
 
-# 3. Inactive deploy key disclosed in build log
+# 1. Inactive deploy key disclosed in build log
 
 > Type: security · Severity: medium
 

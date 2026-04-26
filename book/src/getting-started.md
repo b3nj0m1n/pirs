@@ -84,8 +84,9 @@ pirs why add 1 --question "why did tests fail?"        --answer "stale cache"
 pirs why add 1 --question "why was the cache stale?"   --answer "build script skipped invalidation" --as-root-cause
 ```
 
-`--as-root-cause` populates the PIR-level `root_cause` field; the doctor
-command will block promotion to `Reviewed` if no root cause is recorded.
+`--as-root-cause` populates the PIR-level `root_cause` field. Recording one
+is strongly recommended before promoting a PIR to `Reviewed`, though the
+current `pirs doctor --review-gate` check does not yet enforce it.
 
 ## Track follow-up actions
 
@@ -110,8 +111,8 @@ pirs status 1 reviewed   # gated by `pirs doctor --review-gate 1`
 ```
 
 The `Reviewed` transition is gated: a PIR must have a problem statement,
-timeline events, a 5-Whys chain with a root cause, at least one action item,
-and `resolved_at` set. Run `pirs doctor` to see what's missing.
+timeline events, a non-empty 5-Whys chain, at least one action item, and
+`resolved_at` set. Run `pirs doctor` to see what's missing.
 
 ## Inspect the repository
 

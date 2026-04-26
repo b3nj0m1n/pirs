@@ -70,7 +70,7 @@ pirs action add 12 \
   --due 2026-05-15
 
 # When complete:
-pirs action update 12 A1 --status done --evidence "https://github.com/example/repo/pull/42"
+pirs action close 12 ACT-001 --evidence "https://github.com/example/repo/pull/42"
 ```
 
 `--owner-type` should reflect reality. If an agent will execute the action,
@@ -90,10 +90,10 @@ pirs mcp serve                       # stdio, agent identity required per call
 pirs mcp serve --agent "Copilot"     # set a default actor for write tools
 ```
 
-Available tools include `pir_create`, `pir_timeline_add`, `pir_why_add`,
-`pir_action_add`, `pir_action_update`, `pir_status_set`, `pir_show`,
-`pir_list`, `pir_metrics`, `pir_doctor`, `pir_export_json`, and
-`pir_import_json`. Each tool returns a JSON envelope with `status`, the
+Available tools include `create_pir`, `list_pirs`, `get_pir`, `search_pirs`,
+`append_timeline_event`, `add_why`, `add_action`, `update_action`,
+`update_status`, `link_evidence`, `get_open_actions`, `get_repository_info`,
+and `validate_pir`. Each tool returns a JSON envelope with `status`, the
 created or updated PIR/action identifiers, and any warnings.
 
 ## Best practices for agents
