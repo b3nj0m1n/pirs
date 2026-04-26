@@ -9,64 +9,99 @@ date: 2026-04-26
 
 ## Context and Problem Statement
 
-{Describe the context and problem statement, e.g., in free form using two to three sentences or in the form of an illustrative story. You may want to articulate the problem in form of a question and add links to collaboration boards or issue management systems.}
+We need to decide how to organize the MCP-related Rust code while the
+implementation is still small and cohesive. The immediate choice is whether
+to keep all of the functionality in a single `crates/pirs/src/mcp.rs`
+module or to create an `mcp/` directory with multiple files such as
+`mod.rs`, `state.rs`, `read_tools.rs`, and `write_tools.rs`.
 
-<!-- This is an optional element. Feel free to remove. -->
+A directory-based layout is useful once the code grows, but it also
+introduces extra files, indirection, and maintenance overhead. The question
+for this ADR is whether the current scope justifies that additional
+structure now.
+
 ## Decision Drivers
 
-* {decision driver 1, e.g., a force, facing concern, ...}
-* {decision driver 2, e.g., a force, facing concern, ...}
-* ... <!-- numbers of drivers can vary -->
+* Keep the codebase easy to navigate for a small MCP implementation
+  (~700 LOC, 13 tools).
+* Minimize file and module boilerplate while the logic remains closely
+  related and read mostly top-to-bottom.
+* Preserve the ability to refactor into a directory later if the module
+  grows.
+* Prefer straightforward organization over speculative decomposition.
 
 ## Considered Options
 
-* {title of option 1}
-* {title of option 2}
-* {title of option 3}
-* ... <!-- numbers of options can vary -->
+* Keep a single `mcp.rs` module.
+* Split the code into an `mcp/` directory now.
+* Use a single `mcp.rs` module today and refactor later if growth justifies
+  it.
 
 ## Decision Outcome
 
-Chosen option: "{title of option 1}", because {justification. e.g., only option, which meets k.o. criterion decision driver | which resolves force {force} | ... | comes out best (see below)}.
+Chosen option: **"Keep a single `mcp.rs` module"**, because the current MCP
+code is small enough to remain understandable in one file, and introducing
+a directory structure now would add ceremony without practical benefit. The
+13 tool handlers are short and follow the same pattern, so reading them in
+sequence is easier than chasing them across multiple files.
 
-<!-- This is an optional element. Feel free to remove. -->
 ### Consequences
 
-* Good, because {positive consequence, e.g., improvement of one or more desired qualities, ...}
-* Bad, because {negative consequence, e.g., compromising one or more desired qualities, ...}
-* ... <!-- numbers of consequences can vary -->
+* Good, because related MCP logic remains in one place and is easy to
+  discover.
+* Good, because the project avoids premature modularization and extra file
+  churn.
+* Good, because refactoring from one module into a directory remains
+  straightforward if the implementation expands.
+* Bad, because a larger future `mcp.rs` file may eventually become harder
+  to scan.
+* Bad, because a single-file layout provides less explicit separation
+  between read tools, write tools, and transport wiring.
 
-<!-- This is an optional element. Feel free to remove. -->
 ### Confirmation
 
-{Describe how the implementation/compliance of the ADR can/will be confirmed. Is there any automated or manual fitness function? If so, list it and explain how it is applied. Is the chosen design and its implementation in line with the decision? E.g., a design/code review or a test with a library such as ArchUnit can help validate this. Note that although we classify this element as optional, it is included in many ADRs.}
+Compliance is confirmed by repository structure review. As long as
+`crates/pirs/src/mcp.rs` stays under roughly 1000 lines and changes review
+comfortably within a single module, the ADR is being followed. If `mcp.rs`
+starts to mix clearly separate responsibilities (e.g., a dedicated
+authentication layer, multiple transports beyond stdio/HTTP, or a
+significantly larger tool surface), this decision should be revisited and
+the code can be split into an `mcp/` directory.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## Pros and Cons of the Options
 
-### {title of option 1}
+### Keep a single `mcp.rs` module
 
-<!-- This is an optional element. Feel free to remove. -->
-{example | description | pointer to more information | ...}
+* Good, because it is the simplest structure for a small, cohesive
+  implementation.
+* Good, because contributors only need to look in one place to understand
+  the MCP code.
+* Neutral, because it does not prevent a later refactor into multiple
+  files.
+* Bad, because file size will grow over time as new tools are added.
 
-* Good, because {argument a}
-* Good, because {argument b}
-<!-- use "neutral" if the given argument weights neither for good nor bad -->
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* ... <!-- numbers of pros and cons can vary -->
+### Split the code into an `mcp/` directory now
 
-### {title of other option}
+* Good, because responsibilities can be separated earlier into dedicated
+  files (read vs write, schemas, helpers).
+* Neutral, because Rust supports either organization style cleanly.
+* Bad, because it adds boilerplate and indirection before the complexity
+  requires it.
+* Bad, because it spreads ~700 LOC of closely related logic across multiple
+  files unnecessarily.
 
-{example | description | pointer to more information | ...}
+### Use a single `mcp.rs` module now and refactor later if needed
 
-* Good, because {argument a}
-* Good, because {argument b}
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* ...
+* Good, because it keeps today's structure simple while acknowledging
+  growth.
+* Neutral, because it is operationally close to the chosen option, just
+  with an explicit review trigger.
+* Bad, because without clear thresholds, the refactor point may remain
+  subjective.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## More Information
 
-{You might want to provide additional evidence/confidence for the decision outcome here and/or document the team agreement on the decision and/or define when/how this decision should be realized and if/when it should be re-visited. Links to other decisions and resources might appear here as well.}
+Revisit if `mcp.rs` grows to the point where separate concerns such as
+protocol types, transport handling, authentication, and higher-level
+orchestration no longer fit comfortably in one module. Until then, prefer
+the simpler layout.

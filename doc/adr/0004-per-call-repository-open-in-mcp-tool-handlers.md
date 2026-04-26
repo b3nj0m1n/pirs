@@ -9,64 +9,103 @@ date: 2026-04-26
 
 ## Context and Problem Statement
 
-{Describe the context and problem statement, e.g., in free form using two to three sentences or in the form of an illustrative story. You may want to articulate the problem in form of a question and add links to collaboration boards or issue management systems.}
+MCP tool handlers may be invoked independently and concurrently, with no
+guarantees about shared in-memory state between calls. We need a predictable
+way for each handler to access the on-disk PIR repository while avoiding
+stale state, hidden coupling between tool invocations, and long-lived
+repository handles that are difficult to reason about — especially since
+the on-disk layout can be modified by the user (or another `pirs` process)
+in between calls.
 
-<!-- This is an optional element. Feel free to remove. -->
+The question is whether handlers should reuse a single shared repository
+object held in `PirState` or call `Repository::open(&state.root)` for every
+tool call.
+
 ## Decision Drivers
 
-* {decision driver 1, e.g., a force, facing concern, ...}
-* {decision driver 2, e.g., a force, facing concern, ...}
-* ... <!-- numbers of drivers can vary -->
+* REQ-MCP-002: tool handlers must observe the current on-disk state, even
+  if the user edits files outside the server.
+* Tool handlers must behave correctly under concurrent or interleaved
+  calls.
+* Repository access should not depend on mutable shared state across
+  requests.
+* Resource lifecycle should be explicit and bounded to a single tool
+  invocation.
+* Implementation should be simple to read, test, and review.
 
 ## Considered Options
 
-* {title of option 1}
-* {title of option 2}
-* {title of option 3}
-* ... <!-- numbers of options can vary -->
+* Open the repository per tool call inside each MCP handler.
+* Reuse a shared repository instance for the lifetime of the MCP server
+  process.
+* Cache repository instances and reuse them opportunistically across calls.
 
 ## Decision Outcome
 
-Chosen option: "{title of option 1}", because {justification. e.g., only option, which meets k.o. criterion decision driver | which resolves force {force} | ... | comes out best (see below)}.
+Chosen option: **"Open the repository per tool call inside each MCP
+handler"**, because it provides the clearest lifecycle boundary, guarantees
+that each call sees the current on-disk state, and is the safest default
+for correctness in a request-oriented integration. `Repository::open` is
+cheap (it parses `pirs.toml` and lists a directory); profiling did not show
+it as a hotspot.
 
-<!-- This is an optional element. Feel free to remove. -->
 ### Consequences
 
-* Good, because {positive consequence, e.g., improvement of one or more desired qualities, ...}
-* Bad, because {negative consequence, e.g., compromising one or more desired qualities, ...}
-* ... <!-- numbers of consequences can vary -->
+* Good, because each tool invocation gets a fresh repository handle with a
+  well-defined lifetime.
+* Good, because concurrent calls are isolated from one another and cannot
+  interfere through shared in-memory caches.
+* Good, because external file edits between calls are picked up
+  automatically — important when users mix CLI and MCP usage.
+* Good, because failure handling is simpler when acquisition and cleanup
+  happen within the same handler.
+* Bad, because opening the repository on every call adds modest overhead
+  compared with reusing a long-lived instance.
+* Bad, because handlers must consistently call `open_repo(&st)` rather than
+  relying on process-level initialization. This is mitigated by the
+  `open_repo` helper.
 
-<!-- This is an optional element. Feel free to remove. -->
 ### Confirmation
 
-{Describe how the implementation/compliance of the ADR can/will be confirmed. Is there any automated or manual fitness function? If so, list it and explain how it is applied. Is the chosen design and its implementation in line with the decision? E.g., a design/code review or a test with a library such as ArchUnit can help validate this. Note that although we classify this element as optional, it is included in many ADRs.}
+Compliance is confirmed by code review of `crates/pirs/src/mcp.rs`: every
+tool handler calls `open_repo(&st)` (which delegates to
+`Repository::open`) at the top of its body. The
+`mcp_full_lifecycle_resolved_with_actions_and_whys` integration test makes
+nine sequential tool calls in one server process and observes that each
+call sees the file written by the previous call.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## Pros and Cons of the Options
 
-### {title of option 1}
+### Open the repository per tool call inside each MCP handler
 
-<!-- This is an optional element. Feel free to remove. -->
-{example | description | pointer to more information | ...}
+* Good, because repository state is fresh for each invocation.
+* Good, because the lifecycle is explicit and easy to reason about.
+* Neutral, because the pattern duplicates two lines of setup across
+  handlers (wrapped in `open_repo` to keep this trivial).
+* Bad, because repeated open operations cost more than reusing an open
+  instance.
 
-* Good, because {argument a}
-* Good, because {argument b}
-<!-- use "neutral" if the given argument weights neither for good nor bad -->
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* ... <!-- numbers of pros and cons can vary -->
+### Reuse a shared repository instance for the lifetime of the MCP server process
 
-### {title of other option}
+* Good, because it may reduce per-call overhead.
+* Bad, because shared mutable state increases the risk of stale data,
+  lifecycle bugs, and cross-request coupling.
+* Bad, because external file edits between calls would not be observed
+  without explicit invalidation logic.
 
-{example | description | pointer to more information | ...}
+### Cache repository instances and reuse them opportunistically across calls
 
-* Good, because {argument a}
-* Good, because {argument b}
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* ...
+* Good, because it could balance some performance benefits with fewer
+  opens.
+* Bad, because correctness depends on cache invalidation rules that have
+  not been needed.
+* Bad, because it introduces more complexity than either purely per-call
+  or purely shared approaches.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## More Information
 
-{You might want to provide additional evidence/confidence for the decision outcome here and/or document the team agreement on the decision and/or define when/how this decision should be realized and if/when it should be re-visited. Links to other decisions and resources might appear here as well.}
+This decision prefers correctness, isolation, and operational simplicity
+over speculative optimization. If profiling later shows that per-call
+repository opening is a meaningful bottleneck, the team can revisit this
+ADR with concrete measurements and a clear proposal for safe reuse or
+caching semantics.

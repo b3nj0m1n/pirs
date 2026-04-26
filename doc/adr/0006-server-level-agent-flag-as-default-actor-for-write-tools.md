@@ -9,64 +9,90 @@ date: 2026-04-26
 
 ## Context and Problem Statement
 
-{Describe the context and problem statement, e.g., in free form using two to three sentences or in the form of an illustrative story. You may want to articulate the problem in form of a question and add links to collaboration boards or issue management systems.}
+Several MCP write tools (`create_pir`, `append_timeline_event`, `add_why`,
+`add_action`, `update_action`, `update_status`, `link_evidence`) need an
+actor name to record who performed the change. In the common deployment
+case there is exactly one agent talking to the server (e.g., one Claude
+client), and forcing every tool call to repeat the same `agent` argument is
+verbose, error-prone, and clutters the schemas the agent sees.
 
-<!-- This is an optional element. Feel free to remove. -->
+We need a way to make the common single-agent case ergonomic without
+breaking the multi-agent case where different callers act under different
+identities through one server process.
+
 ## Decision Drivers
 
-* {decision driver 1, e.g., a force, facing concern, ...}
-* {decision driver 2, e.g., a force, facing concern, ...}
-* ... <!-- numbers of drivers can vary -->
+* Reduce per-call boilerplate for the dominant single-agent deployment.
+* Keep schemas understandable: agents can see the `agent` argument is
+  optional rather than always required.
+* Continue to support multi-agent setups where each call carries its own
+  identity.
+* Make the failure mode (no actor available at all) clear and early.
 
 ## Considered Options
 
-* {title of option 1}
-* {title of option 2}
-* {title of option 3}
-* ... <!-- numbers of options can vary -->
+* Server-level `--agent` flag that supplies the default actor; per-call
+  `agent` argument overrides it.
+* Per-call `agent` argument required on every write tool, with no
+  server-level default.
+* Server-level `--agent` flag only, with no per-call override.
 
 ## Decision Outcome
 
-Chosen option: "{title of option 1}", because {justification. e.g., only option, which meets k.o. criterion decision driver | which resolves force {force} | ... | comes out best (see below)}.
+Chosen option: **"Server-level `--agent` flag with optional per-call
+`agent` argument that overrides"**. `PirState` carries
+`agent: Option<String>`; write handlers fall back to it when the call omits
+one and return an error if both are absent.
 
-<!-- This is an optional element. Feel free to remove. -->
 ### Consequences
 
-* Good, because {positive consequence, e.g., improvement of one or more desired qualities, ...}
-* Bad, because {negative consequence, e.g., compromising one or more desired qualities, ...}
-* ... <!-- numbers of consequences can vary -->
+* Good, because the common case (one agent per server) needs no per-call
+  boilerplate or repeated arguments.
+* Good, because multi-agent deployments still work via the per-call
+  argument.
+* Good, because the failure mode is explicit: a write tool called with no
+  per-call `agent` and no server default returns an error rather than
+  silently writing an "unknown" actor.
+* Neutral, because operators must remember to pass `--agent` for the
+  most ergonomic experience.
 
-<!-- This is an optional element. Feel free to remove. -->
 ### Confirmation
 
-{Describe how the implementation/compliance of the ADR can/will be confirmed. Is there any automated or manual fitness function? If so, list it and explain how it is applied. Is the chosen design and its implementation in line with the decision? E.g., a design/code review or a test with a library such as ArchUnit can help validate this. Note that although we classify this element as optional, it is included in many ADRs.}
+Confirmed by code review of `crates/pirs/src/mcp.rs`: each write handler
+resolves the actor via `resolve_actor(&st, input.agent.as_deref())`,
+which prefers the per-call argument and falls back to `st.agent`. The
+`mcp_full_lifecycle_resolved_with_actions_and_whys` test passes a
+per-call `agent` on every call to assert that override path works; manual
+verification of the `--agent` fallback path was performed against a
+scratch repo at `/tmp/mcp-smoke`.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## Pros and Cons of the Options
 
-### {title of option 1}
+### Server-level `--agent` flag with per-call override (chosen)
 
-<!-- This is an optional element. Feel free to remove. -->
-{example | description | pointer to more information | ...}
+* Good, because it makes the common case ergonomic.
+* Good, because it preserves correctness for multi-agent deployments.
+* Good, because it produces a clear error when no actor is available.
+* Bad, because the resolution rule (per-call > server default > error) must
+  be documented for users.
 
-* Good, because {argument a}
-* Good, because {argument b}
-<!-- use "neutral" if the given argument weights neither for good nor bad -->
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* ... <!-- numbers of pros and cons can vary -->
+### Per-call `agent` argument required on every write tool
 
-### {title of other option}
+* Good, because the call site is always self-describing.
+* Bad, because it forces the same string into every tool call in the
+  single-agent case.
+* Bad, because it makes the schemas noisier and increases the risk of
+  agents forgetting the argument.
 
-{example | description | pointer to more information | ...}
+### Server-level `--agent` only, with no per-call override
 
-* Good, because {argument a}
-* Good, because {argument b}
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* ...
+* Good, because it is the simplest shape.
+* Bad, because it cannot represent multi-agent setups.
+* Bad, because changing actor mid-session would require restarting the
+  server.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## More Information
 
-{You might want to provide additional evidence/confidence for the decision outcome here and/or document the team agreement on the decision and/or define when/how this decision should be realized and if/when it should be re-visited. Links to other decisions and resources might appear here as well.}
+Revisit if multi-agent deployments become the dominant case (e.g., one
+shared MCP server fronting several agents), in which case requiring the
+per-call argument may be a better default than allowing it to be omitted.

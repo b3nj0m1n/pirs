@@ -269,7 +269,10 @@ fn tool_get_pir(state: Arc<PirState>) -> tower_mcp::Tool {
                     Err(e) => return err_result(e),
                 };
                 match repo.find(&input.query) {
-                    Ok(p) => ok_json(serde_json::to_value(&p).unwrap_or(Value::Null)),
+                    Ok(p) => match serde_json::to_value(&p) {
+                        Ok(value) => ok_json(value),
+                        Err(e) => err_result(anyhow!("failed to serialize PIR result: {e}")),
+                    },
                     Err(e) => err_result(e),
                 }
             },
@@ -402,7 +405,10 @@ fn tool_get_repository_info(state: Arc<PirState>) -> tower_mcp::Tool {
                 Ok(r) => r,
                 Err(e) => return err_result(e),
             };
-            let count = repo.list().map(|p| p.len()).unwrap_or(0);
+            let count = match repo.list() {
+                Ok(pirs) => pirs.len(),
+                Err(e) => return err_result(e),
+            };
             ok_json(json!({
                 "root": repo.root().display().to_string(),
                 "pir_dir": repo.config().pir_dir.display().to_string(),
@@ -455,7 +461,7 @@ fn tool_validate_pir(state: Arc<PirState>) -> tower_mcp::Tool {
                     "pir": pir.number,
                     "issues": issues,
                     "review_gate_missing": review_missing,
-                    "ready_for_reviewed": review_missing.is_empty(),
+                    "ready_for_review": review_missing.is_empty(),
                 }))
             },
         )

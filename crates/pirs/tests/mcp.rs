@@ -66,15 +66,26 @@ fn drive_server(temp: &assert_fs::TempDir, requests: &[String]) -> Vec<Value> {
         let mut out = Vec::new();
         for line in BufReader::new(stdout).lines() {
             match line {
-                Ok(l) if !l.trim().is_empty() => {
-                    if let Ok(v) = serde_json::from_str::<Value>(&l) {
-                        out.push(v);
-                    }
-                }
-                _ => break,
+                Ok(l) if !l.trim().is_empty() => match serde_json::from_str::<Value>(&l) {
+                    Ok(v) => out.push(v),
+                    Err(e) => panic!("non-JSON line on stdout (parse error: {e}): {l:?}"),
+                },
+                Ok(_) => continue,
+                Err(_) => break,
             }
         }
         out
+    });
+
+    // Drain stderr concurrently so the child can't block on a full pipe.
+    let stderr = child.stderr.take().unwrap();
+    let stderr_handle = std::thread::spawn(move || {
+        let mut buf = String::new();
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            buf.push_str(&line);
+            buf.push('\n');
+        }
+        buf
     });
 
     // Wait for the child with a timeout fallback.
@@ -90,6 +101,7 @@ fn drive_server(temp: &assert_fs::TempDir, requests: &[String]) -> Vec<Value> {
             Err(e) => panic!("wait failed: {e}"),
         }
     }
+    let _stderr_buf = stderr_handle.join().expect("stderr thread");
     reader_handle.join().expect("reader thread")
 }
 
@@ -220,7 +232,11 @@ fn mcp_create_pir_then_list_pirs() {
     );
 
     // The PIR file actually exists on disk (REQ-MCP-002 — per-call repo writes through).
-    temp.child("doc/pir/0001-failing-cargo-test-after-parser-change.md");
+    assert!(
+        temp.path()
+            .join("doc/pir/0001-failing-cargo-test-after-parser-change.md")
+            .is_file()
+    );
     let entries: Vec<_> = std::fs::read_dir(temp.path().join("doc/pir"))
         .unwrap()
         .filter_map(|e| e.ok())
@@ -309,7 +325,7 @@ fn mcp_full_lifecycle_resolved_with_actions_and_whys() {
 
     let validate_text = extract_tool_text(find_response(&responses, 7).unwrap()).unwrap();
     let validate_value: Value = serde_json::from_str(&validate_text).unwrap();
-    assert_eq!(validate_value["ready_for_reviewed"], json!(true));
+    assert_eq!(validate_value["ready_for_review"], json!(true));
 }
 
 #[test]
@@ -330,6 +346,3 @@ fn mcp_get_repository_info_returns_resolved_paths() {
     assert_eq!(v["pir_dir"], json!("doc/pir"));
     assert_eq!(v["total_pirs"], json!(0));
 }
-
-// Use of `assert_fs::prelude::*` for the `child(...)` helper above.
-use assert_fs::prelude::*;

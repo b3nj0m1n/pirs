@@ -42,16 +42,10 @@ pub fn run(args: Args<'_>) -> Result<()> {
         None => IncidentType::Development,
     };
 
-    // REQ-NEW-005a: agent-created Development incidents default to Low severity.
-    let default_severity =
-        if args.agent.is_some() && matches!(incident_type, IncidentType::Development) {
-            IncidentSeverity::Low
-        } else {
-            IncidentSeverity::Low
-        };
+    // REQ-NEW-005a: PIRs default to Low severity unless `--severity` overrides.
     let severity = match args.severity.as_deref() {
         Some(s) => IncidentSeverity::from_str(s).unwrap(),
-        None => default_severity,
+        None => IncidentSeverity::Low,
     };
 
     let mut pir = Pir::new(number, &args.title);

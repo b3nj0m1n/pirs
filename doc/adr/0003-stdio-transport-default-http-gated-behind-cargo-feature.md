@@ -9,64 +9,88 @@ date: 2026-04-26
 
 ## Context and Problem Statement
 
-{Describe the context and problem statement, e.g., in free form using two to three sentences or in the form of an illustrative story. You may want to articulate the problem in form of a question and add links to collaboration boards or issue management systems.}
+The MCP server supports more than one transport for communicating with
+clients. We need a sensible default that works in the widest range of local
+and tool-driven environments without forcing all consumers to compile in
+networking support. We also want HTTP transport to remain available for
+deployments that need it, but only when explicitly enabled.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## Decision Drivers
 
-* {decision driver 1, e.g., a force, facing concern, ...}
-* {decision driver 2, e.g., a force, facing concern, ...}
-* ... <!-- numbers of drivers can vary -->
+* Keep the default build small and free of HTTP/TLS dependency surface.
+* Prefer the transport that works reliably for local process-based
+  integrations (Claude Desktop, Continue, editor plugins).
+* Avoid forcing HTTP-only configuration on consumers that do not need it.
+* Preserve the ability to enable HTTP transport for deployments that do.
 
 ## Considered Options
 
-* {title of option 1}
-* {title of option 2}
-* {title of option 3}
-* ... <!-- numbers of options can vary -->
+* Make stdio the default transport and gate HTTP behind a Cargo feature.
+* Make HTTP the default transport and gate stdio behind a Cargo feature.
+* Ship both transports unconditionally with no feature gating.
 
 ## Decision Outcome
 
-Chosen option: "{title of option 1}", because {justification. e.g., only option, which meets k.o. criterion decision driver | which resolves force {force} | ... | comes out best (see below)}.
+Chosen option: **"Make stdio the default transport and gate HTTP behind a
+Cargo feature"**, because it provides the lowest-friction default for local
+integrations, keeps the default dependency graph small, and still allows
+HTTP transport to be enabled explicitly when a deployment requires it.
 
-<!-- This is an optional element. Feel free to remove. -->
 ### Consequences
 
-* Good, because {positive consequence, e.g., improvement of one or more desired qualities, ...}
-* Bad, because {negative consequence, e.g., compromising one or more desired qualities, ...}
-* ... <!-- numbers of consequences can vary -->
+* Good, because the default build path stays focused on local/process-based
+  use, which matches every existing MCP client today.
+* Good, because consumers that only need stdio do not pay the build,
+  dependency, or runtime cost of HTTP support.
+* Good, because HTTP remains supported for environments that need a network
+  transport — `cargo build --features http` is enough.
+* Bad, because users who expect HTTP out of the box must discover and enable
+  the appropriate Cargo feature.
+* Bad, because documentation and packaging must clearly describe which
+  feature enables HTTP transport.
 
-<!-- This is an optional element. Feel free to remove. -->
 ### Confirmation
 
-{Describe how the implementation/compliance of the ADR can/will be confirmed. Is there any automated or manual fitness function? If so, list it and explain how it is applied. Is the chosen design and its implementation in line with the decision? E.g., a design/code review or a test with a library such as ArchUnit can help validate this. Note that although we classify this element as optional, it is included in many ADRs.}
+Compliance is confirmed by reviewing `crates/pirs/Cargo.toml` (the `http`
+feature wires `tower-mcp/http`) and `crates/pirs/src/mcp.rs` (the
+`HttpTransport` path is behind `#[cfg(feature = "http")]`). `cargo build -p
+pirs` produces a binary with stdio only; `cargo build -p pirs --features
+http` produces one that can also serve HTTP. Both build configurations are
+exercised by CI/local testing.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## Pros and Cons of the Options
 
-### {title of option 1}
+### Make stdio the default transport and gate HTTP behind a Cargo feature
 
-<!-- This is an optional element. Feel free to remove. -->
-{example | description | pointer to more information | ...}
+* Good, because it aligns the default with local tool/process invocation
+  patterns used by every current MCP client.
+* Good, because it reduces default dependency surface area.
+* Neutral, because HTTP is still available when explicitly requested.
+* Bad, because HTTP users must take an extra configuration step.
 
-* Good, because {argument a}
-* Good, because {argument b}
-<!-- use "neutral" if the given argument weights neither for good nor bad -->
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* ... <!-- numbers of pros and cons can vary -->
+### Make HTTP the default transport and gate stdio behind a Cargo feature
 
-### {title of other option}
+* Good, because networked deployments work without feature selection.
+* Neutral, because stdio could still be supported as an optional mode.
+* Bad, because it makes the default build heavier for consumers that only
+  need local stdio communication.
+* Bad, because it treats a deployment-specific transport as the baseline
+  even though no current MCP client uses it by default.
 
-{example | description | pointer to more information | ...}
+### Ship both transports by default with no feature gating
 
-* Good, because {argument a}
-* Good, because {argument b}
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* ...
+* Good, because all supported transports are immediately available.
+* Neutral, because users do not need to learn feature flags.
+* Bad, because it increases the default dependency and build surface for
+  every consumer regardless of need.
+* Bad, because it weakens the separation between common and optional
+  functionality.
 
-<!-- This is an optional element. Feel free to remove. -->
 ## More Information
 
-{You might want to provide additional evidence/confidence for the decision outcome here and/or document the team agreement on the decision and/or define when/how this decision should be realized and if/when it should be re-visited. Links to other decisions and resources might appear here as well.}
+This decision should be revisited if the primary deployment model changes
+from local/process-based integrations to predominantly networked
+deployments, or if maintaining HTTP as an optional feature introduces
+unacceptable complexity. Related implementation and release documentation
+should clearly call out that stdio is the default and HTTP requires the
+explicit `http` Cargo feature.
