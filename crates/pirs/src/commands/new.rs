@@ -67,7 +67,7 @@ pub fn run(args: Args<'_>) -> Result<()> {
             .people_involved
             .first()
             .map(|a| a.name.clone())
-            .unwrap_or_else(|| whoami::username());
+            .unwrap_or_else(whoami::username);
         pir.timeline.push(TimelineEvent {
             at: now,
             actor,
@@ -79,10 +79,11 @@ pub fn run(args: Args<'_>) -> Result<()> {
     pir.recompute_durations();
     let path = repo.create(&pir)?;
 
-    if !args.no_edit && atty_stdin() {
-        if let Err(e) = edit::edit_file(&path) {
-            eprintln!("warning: could not open editor: {e}");
-        }
+    if !args.no_edit
+        && atty_stdin()
+        && let Err(e) = edit::edit_file(&path)
+    {
+        eprintln!("warning: could not open editor: {e}");
     }
 
     println!("{}", path.display());

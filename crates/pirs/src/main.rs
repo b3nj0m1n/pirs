@@ -182,6 +182,23 @@ enum Commands {
         /// Specific PIR number to export
         #[arg(long)]
         pir: Option<u32>,
+        /// Apply configured privacy redaction before writing JSON
+        #[arg(long)]
+        redact: bool,
+    },
+
+    /// Import PIRs from JSON-PIR
+    Import {
+        /// `json`
+        format: String,
+        /// Input file path, or `-` for stdin
+        input: String,
+        /// Report planned imports without writing files
+        #[arg(long)]
+        dry_run: bool,
+        /// Replace existing PIR files with the same number
+        #[arg(long)]
+        overwrite: bool,
     },
 
     /// Show resolved configuration
@@ -420,7 +437,23 @@ fn main() -> Result<()> {
             warnings_as_errors,
             review_gate,
         } => commands::doctor::run(&cwd, warnings_as_errors, review_gate),
-        Commands::Export { format, pir } => commands::export::run(&cwd, &format, pir),
+        Commands::Export {
+            format,
+            pir,
+            redact,
+        } => commands::export::run(&cwd, &format, pir, redact),
+        Commands::Import {
+            format,
+            input,
+            dry_run,
+            overwrite,
+        } => commands::import::run(commands::import::Args {
+            cwd: &cwd,
+            format,
+            input,
+            dry_run,
+            overwrite,
+        }),
         Commands::Config => commands::config::run(&cwd),
         Commands::Template { sub } => match sub {
             TemplateSub::List => commands::template::list(),

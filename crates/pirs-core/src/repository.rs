@@ -106,6 +106,35 @@ impl Repository {
             .ok_or_else(|| Error::PirNotFound(number.to_string()))
     }
 
+    pub fn path_for_number(&self, number: u32) -> Result<Option<PathBuf>> {
+        let pir_path = self.pir_path();
+        if !pir_path.exists() {
+            return Err(Error::PirDirNotFound);
+        }
+        let prefix = format!("{number:04}-");
+        for entry in fs::read_dir(pir_path)? {
+            let entry = entry?;
+            let path = entry.path();
+            let is_markdown = path.extension().is_some_and(|ext| ext == "md");
+            let has_number = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(&prefix));
+            if is_markdown && has_number {
+                return Ok(Some(path));
+            }
+        }
+        Ok(None)
+    }
+
+    pub fn remove_number(&self, number: u32) -> Result<Option<PathBuf>> {
+        let Some(path) = self.path_for_number(number)? else {
+            return Ok(None);
+        };
+        fs::remove_file(&path)?;
+        Ok(Some(path))
+    }
+
     /// Find a PIR by number or fuzzy match on title / problem statement.
     pub fn find(&self, query: &str) -> Result<Pir> {
         if let Ok(n) = query.parse::<u32>() {

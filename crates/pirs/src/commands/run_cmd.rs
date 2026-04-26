@@ -60,7 +60,7 @@ fn append_event(
     exit_code: i32,
     started: OffsetDateTime,
 ) -> Result<()> {
-    let actor = args.agent.clone().unwrap_or_else(|| whoami::username());
+    let actor = args.agent.clone().unwrap_or_else(whoami::username);
     repo.append_timeline(
         target,
         TimelineEvent {
@@ -99,7 +99,7 @@ fn create_pir(
     if let Some(a) = &args.agent {
         pir.people_involved.push(Actor::agent(a));
     }
-    let actor_name = args.agent.clone().unwrap_or_else(|| whoami::username());
+    let actor_name = args.agent.clone().unwrap_or_else(whoami::username);
     pir.timeline.push(TimelineEvent {
         at: finished,
         actor: actor_name,

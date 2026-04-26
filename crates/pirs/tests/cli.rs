@@ -363,8 +363,14 @@ fn ac_011_export_json_redact_masks_configured_patterns() {
         .assert()
         .success();
     let redacted = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
-    assert!(!redacted.contains("token=abc123"), "redacted export: {redacted}");
-    assert!(redacted.contains("[REDACTED]"), "redacted export: {redacted}");
+    assert!(
+        !redacted.contains("token=abc123"),
+        "redacted export: {redacted}"
+    );
+    assert!(
+        redacted.contains("[REDACTED]"),
+        "redacted export: {redacted}"
+    );
 }
 
 #[test]
@@ -450,7 +456,10 @@ fn import_json_stdin_dry_run_reports_without_writing() {
     let entries: Vec<_> = std::fs::read_dir(target.child("doc/pir").path())
         .unwrap()
         .collect();
-    assert!(entries.is_empty(), "dry-run must not create files: {entries:?}");
+    assert!(
+        entries.is_empty(),
+        "dry-run must not create files: {entries:?}"
+    );
 }
 
 #[test]

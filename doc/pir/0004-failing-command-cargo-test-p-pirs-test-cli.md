@@ -1,17 +1,23 @@
 ---
 number: 4
 title: 'Failing command: cargo test -p pirs --test cli'
-status: Open
+status: Resolved
 severity: Low
 incident_type: Development
-problem_statement: |
-  Wrapped command exited with code 101.
-
-  Command: cargo test -p pirs --test cli
-
-  exit_code: 101
-  command: cargo test -p pirs --test cli
-  --- stdout ---
+problem_statement: "Wrapped command exited with code 101.\n\nCommand: cargo test -p pirs --test cli\n\nexit_code: 101\ncommand: cargo test -p pirs --test cli\n--- stdout "
+resolved_at: 2026-04-26T05:59:56.938544Z
+timeline:
+- at: 2026-04-26T05:59:56.919794Z
+  actor: GitHub Copilot
+  type: note
+  description: The RED test failure was resolved by implementing JSON-PIR import and redacted export; cargo test -p pirs --test cli now passes.
+- at: 2026-04-26T05:59:56.938544Z
+  actor: pirs
+  type: resolved
+  description: status -> Resolved
+impact: _What systems, tests, environments, or workflows were affected?_
+confidentiality: Internal
+---
 
   running 14 tests
   test ac_001_init_creates_pir_dir_without_sample_pir ... ok
@@ -459,3 +465,5 @@ _What went well, what went wrong, where we got lucky._
 ## Links
 
 _Typed evidence links: commits, PRs, issues, dashboards, runbooks._
+
+
