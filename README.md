@@ -44,6 +44,9 @@ pirs show 1
 pirs actions --owner "GitHub Copilot"
 pirs doctor
 pirs export json > pirs.json
+pirs export json --redact > pirs-redacted.json
+pirs import json pirs.json --dry-run
+pirs import json pirs.json --overwrite
 
 # expose the same operations to LLM agents over the Model Context Protocol
 pirs mcp serve                                  # stdio (REQ-MCP-001)
@@ -77,13 +80,13 @@ PIRS/
   (REQ-MCP-001..006).
 - Built-in templates: `development`, `production`, `security`, `process`, `minimal`.
 - YAML frontmatter parser, atomic file writes, ISO-8601 duration derivation.
-- JSON-PIR v1 schema and bulk/single export.
-- 19 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
+- JSON-PIR v1 schema, bulk/single export, redacted export (`--redact`), and
+  import from files or stdin with dry-run and overwrite handling.
+- 30 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
   REQ-TIME-003 and the MCP server lifecycle.
 
 ## Not yet implemented
 
-- `import json` / redacted export (`--redact`).
 - Reports: `generate report`, `generate actions`, `metrics`, blameless
   language audit (`doctor --language`).
 - File locking around `next_number()` (basic atomic write only).

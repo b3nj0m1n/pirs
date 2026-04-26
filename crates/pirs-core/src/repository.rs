@@ -106,6 +106,49 @@ impl Repository {
             .ok_or_else(|| Error::PirNotFound(number.to_string()))
     }
 
+    pub fn path_for_number(&self, number: u32) -> Result<Option<PathBuf>> {
+        let mut paths = self.paths_for_number(number)?;
+        match paths.len() {
+            0 => Ok(None),
+            1 => Ok(paths.pop()),
+            _ => Err(Error::Validation(format!(
+                "multiple PIR files match number {:04}; resolve duplicates before selecting a single path",
+                number
+            ))),
+        }
+    }
+
+    pub fn paths_for_number(&self, number: u32) -> Result<Vec<PathBuf>> {
+        let pir_path = self.pir_path();
+        if !pir_path.exists() {
+            return Err(Error::PirDirNotFound);
+        }
+        let prefix = format!("{number:04}-");
+        let mut paths = Vec::new();
+        for entry in fs::read_dir(pir_path)? {
+            let entry = entry?;
+            let path = entry.path();
+            let is_markdown = path.extension().is_some_and(|ext| ext == "md");
+            let has_number = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(&prefix));
+            if is_markdown && has_number {
+                paths.push(path);
+            }
+        }
+        paths.sort();
+        Ok(paths)
+    }
+
+    pub fn remove_number(&self, number: u32) -> Result<Vec<PathBuf>> {
+        let paths = self.paths_for_number(number)?;
+        for path in &paths {
+            fs::remove_file(path)?;
+        }
+        Ok(paths)
+    }
+
     /// Find a PIR by number or fuzzy match on title / problem statement.
     pub fn find(&self, query: &str) -> Result<Pir> {
         if let Ok(n) = query.parse::<u32>() {
