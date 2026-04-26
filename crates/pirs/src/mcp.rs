@@ -9,7 +9,8 @@
 //!   feature (REQ-MCP-001).
 //! * Each tool call opens a fresh [`Repository`] (REQ-MCP-002).
 //! * Read tools: `list_pirs`, `get_pir`, `search_pirs`, `get_open_actions`,
-//!   `get_repository_info`, `validate_pir` (REQ-MCP-003).
+//!   `get_repository_info`, `validate_pir`, `get_incident_metrics`,
+//!   `suggest_related_pirs` (REQ-MCP-003).
 //! * Write tools: `create_pir`, `append_timeline_event`, `update_status`,
 //!   `add_why`, `add_action`, `update_action`, `link_evidence` (REQ-MCP-004).
 //! * Agent attribution via the server-level `--agent` flag (REQ-MCP-005).
@@ -17,7 +18,8 @@
 use anyhow::{Context, Result, anyhow};
 use pirs_core::{
     ActionItem, ActionStatus, Actor, ActorKind, EvidenceLink, IncidentSeverity, IncidentStatus,
-    IncidentType, LinkKind, Pir, Repository, TimelineEvent, TimelineEventType, WhyEntry, lint,
+    IncidentType, LinkKind, Pir, RelatedPirOptions, Repository, TimelineEvent, TimelineEventType,
+    WhyEntry, compute_metrics, lint, render_metrics_text, suggest_related_pirs,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -126,6 +128,8 @@ fn build_router(state: PirState) -> McpRouter {
         .tool(tool_get_open_actions(st.clone()))
         .tool(tool_get_repository_info(st.clone()))
         .tool(tool_validate_pir(st.clone()))
+        .tool(tool_get_incident_metrics(st.clone()))
+        .tool(tool_suggest_related_pirs(st.clone()))
         // --- write tools (REQ-MCP-004) ---
         .tool(tool_create_pir(st.clone()))
         .tool(tool_append_timeline_event(st.clone()))
@@ -234,22 +238,29 @@ struct ListPirsInput {
 
 impl From<ListPirsInput> for PirFilters {
     fn from(input: ListPirsInput) -> Self {
-        Self {
-            status: input
-                .status
-                .as_deref()
-                .map(|s| IncidentStatus::from_str(s).unwrap()),
-            severity: input
-                .severity
-                .as_deref()
-                .map(|s| IncidentSeverity::from_str(s).unwrap()),
-            incident_type: input
-                .incident_type
-                .as_deref()
-                .map(|s| IncidentType::from_str(s).unwrap()),
-            tag: input.tag,
-            has_open_actions: input.has_open_actions,
-        }
+        pir_filters(
+            input.status.as_deref(),
+            input.severity.as_deref(),
+            input.incident_type.as_deref(),
+            input.tag,
+            input.has_open_actions,
+        )
+    }
+}
+
+fn pir_filters(
+    status: Option<&str>,
+    severity: Option<&str>,
+    incident_type: Option<&str>,
+    tag: Option<String>,
+    has_open_actions: bool,
+) -> PirFilters {
+    PirFilters {
+        status: status.map(|s| IncidentStatus::from_str(s).unwrap()),
+        severity: severity.map(|s| IncidentSeverity::from_str(s).unwrap()),
+        incident_type: incident_type.map(|s| IncidentType::from_str(s).unwrap()),
+        tag,
+        has_open_actions,
     }
 }
 
@@ -490,6 +501,123 @@ fn tool_validate_pir(state: Arc<PirState>) -> tower_mcp::Tool {
                     "issues": issues,
                     "review_gate_missing": review_missing,
                     "ready_for_review": review_missing.is_empty(),
+                }))
+            },
+        )
+        .build()
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Default)]
+struct IncidentMetricsInput {
+    /// Filter by status (open, investigating, mitigated, resolved, reviewed, cancelled).
+    #[serde(default)]
+    status: Option<String>,
+    /// Filter by severity (low, medium, high, critical).
+    #[serde(default)]
+    severity: Option<String>,
+    /// Filter by incident type (development, production, security, process).
+    #[serde(default)]
+    incident_type: Option<String>,
+    /// Filter by tag.
+    #[serde(default)]
+    tag: Option<String>,
+    /// Only include PIRs with at least one open action.
+    #[serde(default)]
+    has_open_actions: bool,
+    /// Include the same human-readable summary used by `pirs metrics`.
+    #[serde(default)]
+    include_text: bool,
+}
+
+fn tool_get_incident_metrics(state: Arc<PirState>) -> tower_mcp::Tool {
+    ToolBuilder::new("get_incident_metrics")
+        .title("Get incident metrics")
+        .description("Return repository incident metrics with optional list-style filters.")
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<IncidentMetricsInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let pirs = match repo.list() {
+                    Ok(p) => p,
+                    Err(e) => return err_result(e),
+                };
+                let filters = pir_filters(
+                    input.status.as_deref(),
+                    input.severity.as_deref(),
+                    input.incident_type.as_deref(),
+                    input.tag.clone(),
+                    input.has_open_actions,
+                );
+                let selected: Vec<Pir> =
+                    filter_pirs(&pirs, &filters).into_iter().cloned().collect();
+                let metrics = compute_metrics(&selected);
+                let metrics_value = match serde_json::to_value(&metrics) {
+                    Ok(value) => value,
+                    Err(e) => return err_result(anyhow!("failed to serialize metrics: {e}")),
+                };
+                let mut response = json!({
+                    "filters": {
+                        "status": input.status,
+                        "severity": input.severity,
+                        "incident_type": input.incident_type,
+                        "tag": input.tag,
+                        "has_open_actions": input.has_open_actions,
+                    },
+                    "metrics": metrics_value,
+                });
+                if input.include_text {
+                    response["summary_text"] = json!(render_metrics_text(&metrics));
+                }
+                ok_json(response)
+            },
+        )
+        .build()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct SuggestRelatedPirsInput {
+    /// Target PIR number.
+    pir: u32,
+    /// Maximum suggestions to return; capped at 20 and defaults to 5.
+    #[serde(default)]
+    limit: Option<usize>,
+    /// Minimum score in the 0..100 range; defaults to 1.
+    #[serde(default)]
+    min_score: Option<u32>,
+}
+
+fn tool_suggest_related_pirs(state: Arc<PirState>) -> tower_mcp::Tool {
+    ToolBuilder::new("suggest_related_pirs")
+        .title("Suggest related PIRs")
+        .description(
+            "Suggest likely related PIRs using deterministic local tags, links, and text signals.",
+        )
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<SuggestRelatedPirsInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let pirs = match repo.list() {
+                    Ok(p) => p,
+                    Err(e) => return err_result(e),
+                };
+                let suggestions = match suggest_related_pirs(
+                    &pirs,
+                    input.pir,
+                    RelatedPirOptions::new(input.limit, input.min_score),
+                ) {
+                    Ok(suggestions) => suggestions,
+                    Err(e) => return err_result(e),
+                };
+                ok_json(json!({
+                    "pir": input.pir,
+                    "count": suggestions.len(),
+                    "suggestions": suggestions,
                 }))
             },
         )

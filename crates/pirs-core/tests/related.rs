@@ -1,6 +1,5 @@
 use pirs_core::{
-    IncidentSeverity, IncidentType, Pir, RelatedPirError, RelatedPirOptions,
-    suggest_related_pirs,
+    IncidentSeverity, IncidentType, Pir, RelatedPirError, RelatedPirOptions, suggest_related_pirs,
 };
 use serde_json::Value;
 
@@ -39,7 +38,12 @@ fn suggest_related_pirs_orders_by_score_then_number_and_excludes_target() {
     );
     related.incident_type = IncidentType::Development;
 
-    let unrelated = pir(4, "Template typo", "Markdown heading was misspelled", &["docs"]);
+    let unrelated = pir(
+        4,
+        "Template typo",
+        "Markdown heading was misspelled",
+        &["docs"],
+    );
 
     let suggestions = suggest_related_pirs(
         &[target, unrelated, related, strongest],
@@ -48,7 +52,10 @@ fn suggest_related_pirs_orders_by_score_then_number_and_excludes_target() {
     )
     .expect("related suggestions");
 
-    let numbers: Vec<u32> = suggestions.iter().map(|suggestion| suggestion.number).collect();
+    let numbers: Vec<u32> = suggestions
+        .iter()
+        .map(|suggestion| suggestion.number)
+        .collect();
     assert_eq!(numbers, vec![2, 3]);
     assert!(!numbers.contains(&1), "target PIR must not suggest itself");
     assert!(suggestions.iter().all(|suggestion| suggestion.score <= 100));
@@ -91,7 +98,14 @@ fn related_suggestions_serialize_without_forbidden_fields() {
         2,
         "MCP metrics omitted from tool list",
         "The problem statement has words that must not be returned as shared terms",
-        &["mcp", "metrics", "agent", "workflow", "reporting", "privacy"],
+        &[
+            "mcp",
+            "metrics",
+            "agent",
+            "workflow",
+            "reporting",
+            "privacy",
+        ],
     );
     candidate.root_cause = Some("private implementation detail".into());
 
@@ -126,7 +140,10 @@ fn related_suggestions_serialize_without_forbidden_fields() {
         "shared_terms",
         "body_excerpt",
     ] {
-        assert!(!object.contains_key(forbidden), "forbidden key {forbidden} leaked");
+        assert!(
+            !object.contains_key(forbidden),
+            "forbidden key {forbidden} leaked"
+        );
     }
 
     let shared_tags = object["signals"]["shared_tags"].as_array().unwrap();
@@ -134,12 +151,15 @@ fn related_suggestions_serialize_without_forbidden_fields() {
     assert!(shared_tags.iter().any(|tag| tag == "mcp"));
     assert!(shared_tags.iter().any(|tag| tag == "metrics"));
     assert!(shared_tags.iter().any(|tag| tag == "agent"));
-    assert!(matches!(object["signals"]["shared_token_count"], Value::Number(_)));
+    assert!(matches!(
+        object["signals"]["shared_token_count"],
+        Value::Number(_)
+    ));
 }
 
 #[test]
 fn missing_target_returns_error() {
-    let pirs = vec![pir(1, "Only PIR", "problem", &["mcp"] )];
+    let pirs = vec![pir(1, "Only PIR", "problem", &["mcp"])];
     let err = suggest_related_pirs(&pirs, 99, RelatedPirOptions::default())
         .expect_err("missing target should be an error");
     assert_eq!(err, RelatedPirError::TargetNotFound(99));

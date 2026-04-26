@@ -12,6 +12,7 @@ pub mod export;
 pub mod lint;
 pub mod metrics;
 mod parse;
+pub mod related;
 pub mod report;
 mod repository;
 pub mod template;
@@ -28,6 +29,10 @@ pub use lint::{
 };
 pub use metrics::{DurationStats, IncidentMetrics, TagCount, compute_metrics, render_metrics_text};
 pub use parse::Parser;
+pub use related::{
+    RelatedPirError, RelatedPirOptions, RelatedPirSignals, RelatedPirSuggestion,
+    suggest_related_pirs,
+};
 pub use report::{render_action_register, render_pir_report};
 pub use repository::Repository;
 pub use types::{
