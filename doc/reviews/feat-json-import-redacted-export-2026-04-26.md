@@ -94,6 +94,8 @@ Residual non-blocking risks:
 3. Use `pirs export json --redact` only after configuring `[privacy].redaction_patterns` or `[privacy].sensitive_fields` in `pirs.toml`.
 4. Use `pirs import json <FILE> --dry-run` before importing into an existing repository.
 5. Use `--overwrite` only after reviewing the dry-run output for existing-number collisions.
+6. Avoid multi-GB or untrusted streaming inputs until import size limits are added.
+7. Serialize `--overwrite` imports at the script/process level until repository file locking exists.
 
 ## Rollback Plan
 
