@@ -24,6 +24,14 @@ timeline:
   actor: pirs
   type: resolved
   description: status -> Resolved
+- at: 2026-04-26T08:12:25.8531Z
+  actor: GitHub Copilot
+  type: note
+  description: During feat/mcp-incident-tools, the placeholder check was accidentally run with non-recursive grep against doc/adr/ and doc/pir/ again; recovered by switching to rg for recursive scanning.
+- at: 2026-04-26T08:12:49.254534Z
+  actor: GitHub Copilot
+  type: note
+  description: The same recovery also confirmed rg is unavailable in this environment; used grep -R and then narrowed the check to newly created ADR/PIR files because historical PIR-0002 intentionally quotes placeholder strings.
 impact: _Workflows, teams, deliverables, customer commitments affected._
 tags:
 - agent-audit
@@ -56,5 +64,7 @@ _Workflows, teams, deliverables, customer commitments affected._
 ## Lessons Learned
 
 ## Links
+
+
 
 

@@ -166,6 +166,8 @@ fn mcp_tools_list_advertises_read_and_write_tools() {
         "get_open_actions",
         "get_repository_info",
         "validate_pir",
+        "get_incident_metrics",
+        "suggest_related_pirs",
     ] {
         assert!(
             names.iter().any(|x| x == n),
@@ -345,4 +347,168 @@ fn mcp_get_repository_info_returns_resolved_paths() {
     let v: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(v["pir_dir"], json!("doc/pir"));
     assert_eq!(v["total_pirs"], json!(0));
+}
+
+#[test]
+fn mcp_get_incident_metrics_returns_filtered_metrics_and_text() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    init_repo(&temp);
+
+    let mut reqs = initialize_seq();
+    reqs.push(rpc_request(
+        2,
+        "tools/call",
+        json!({
+            "name": "create_pir",
+            "arguments": {
+                "title": "Metrics outage",
+                "problem_statement": "MCP metrics were unavailable",
+                "severity": "high",
+                "incident_type": "development",
+                "tags": ["mcp", "metrics"]
+            }
+        }),
+    ));
+    reqs.push(rpc_request(
+        3,
+        "tools/call",
+        json!({
+            "name": "create_pir",
+            "arguments": {
+                "title": "Template issue",
+                "problem_statement": "Template heading typo",
+                "severity": "low",
+                "incident_type": "process",
+                "tags": ["docs"]
+            }
+        }),
+    ));
+    reqs.push(rpc_request(
+        4,
+        "tools/call",
+        json!({
+            "name": "get_incident_metrics",
+            "arguments": { "severity": "high", "include_text": true }
+        }),
+    ));
+
+    let responses = drive_server(&temp, &reqs);
+    let text = extract_tool_text(find_response(&responses, 4).unwrap()).unwrap();
+    let v: Value = serde_json::from_str(&text).unwrap();
+
+    assert_eq!(v["filters"]["severity"], json!("high"));
+    assert_eq!(v["metrics"]["total"], json!(1));
+    assert_eq!(v["metrics"]["by_severity"]["High"], json!(1));
+    assert!(v["summary_text"].as_str().unwrap().contains("Incidents: 1"));
+}
+
+#[test]
+fn mcp_get_incident_metrics_accepts_custom_filter_values() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    init_repo(&temp);
+
+    let mut reqs = initialize_seq();
+    reqs.push(rpc_request(
+        2,
+        "tools/call",
+        json!({
+            "name": "create_pir",
+            "arguments": {
+                "title": "Custom severity incident",
+                "problem_statement": "A non-standard severity needs aggregate filtering",
+                "severity": "major",
+                "incident_type": "tooling"
+            }
+        }),
+    ));
+    reqs.push(rpc_request(
+        3,
+        "tools/call",
+        json!({
+            "name": "get_incident_metrics",
+            "arguments": { "severity": "major", "incident_type": "tooling" }
+        }),
+    ));
+
+    let responses = drive_server(&temp, &reqs);
+    let text = extract_tool_text(find_response(&responses, 3).unwrap()).unwrap();
+    let v: Value = serde_json::from_str(&text).unwrap();
+
+    assert_eq!(v["filters"]["severity"], json!("major"));
+    assert_eq!(v["filters"]["incident_type"], json!("tooling"));
+    assert_eq!(v["metrics"]["total"], json!(1));
+}
+
+#[test]
+fn mcp_suggest_related_pirs_returns_ranked_privacy_safe_suggestions() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    init_repo(&temp);
+
+    let mut reqs = initialize_seq();
+    for (id, title, problem, tags) in [
+        (
+            2,
+            "MCP metrics omitted",
+            "Agent cannot retrieve incident metrics over MCP",
+            json!(["mcp", "metrics"]),
+        ),
+        (
+            3,
+            "MCP incident metrics missing",
+            "MCP client needs incident metrics for agent workflow",
+            json!(["mcp", "metrics"]),
+        ),
+        (
+            4,
+            "MCP related search unclear",
+            "Agent needs related incident suggestions",
+            json!(["mcp"]),
+        ),
+    ] {
+        reqs.push(rpc_request(
+            id,
+            "tools/call",
+            json!({
+                "name": "create_pir",
+                "arguments": {
+                    "title": title,
+                    "problem_statement": problem,
+                    "severity": "high",
+                    "incident_type": "development",
+                    "tags": tags
+                }
+            }),
+        ));
+    }
+    reqs.push(rpc_request(
+        5,
+        "tools/call",
+        json!({
+            "name": "suggest_related_pirs",
+            "arguments": { "pir": 1, "limit": 2, "min_score": 1 }
+        }),
+    ));
+
+    let responses = drive_server(&temp, &reqs);
+    let text = extract_tool_text(find_response(&responses, 5).unwrap()).unwrap();
+    let v: Value = serde_json::from_str(&text).unwrap();
+    let suggestions = v["suggestions"].as_array().unwrap();
+
+    assert_eq!(v["count"], json!(2));
+    assert_eq!(suggestions[0]["number"], json!(2));
+    assert!(suggestions[0]["signals"]["shared_token_count"].is_number());
+    for forbidden in [
+        "problem_statement",
+        "root_cause",
+        "timeline",
+        "five_whys",
+        "actions",
+        "shared_terms",
+        "body_excerpt",
+    ] {
+        assert!(
+            suggestions[0].get(forbidden).is_none(),
+            "forbidden key {forbidden} leaked"
+        );
+    }
 }

@@ -458,6 +458,15 @@ When an MCP tool is invoked, the system shall open the repository fresh for that
 **REQ-MCP-003 - Read-only tools**
 The MCP server shall expose read-only tools `list_pirs`, `get_pir`, `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`, `get_incident_metrics`, and `suggest_related_pirs`.
 
+**REQ-MCP-003A - Incident metrics MCP tool**
+When the `get_incident_metrics` MCP tool is called, the system shall open the repository for that call, apply optional `status`, `severity`, `incident_type`, `tag`, and `has_open_actions` filters using the same semantics as `list_pirs`, and return a stable top-level JSON object with the shape `{ "filters": { ... }, "metrics": { ... }, "summary_text"?: string }`. The `filters` object shall contain the selected filter scope for that call. The `metrics` object shall contain the `IncidentMetrics` fields `total`, `by_status`, `by_severity`, `by_type`, `ttd_seconds`, `ttr_seconds`, `recurring_tags`, `open_actions`, and `total_actions`. Where `include_text` is true, the system shall also include a top-level `summary_text` field containing the same human-readable metrics summary used by `pirs metrics`.
+
+**REQ-MCP-003B - Related PIR suggestion MCP tool**
+When the `suggest_related_pirs` MCP tool is called with a PIR number, the system shall open the repository for that call, return an MCP error result if the target PIR does not exist, score every other PIR using deterministic local metadata and text signals, and return at most `limit` suggestions ordered by descending score and then ascending PIR number. The tool shall cap `limit` at 20, default it to 5, and omit candidates below `min_score`, defaulting `min_score` to 1. Scores shall be unsigned integers in the range 0..100 for a given scoring version, with future weight tuning allowed to change absolute scores while preserving bounded output and deterministic ordering rules.
+
+**REQ-MCP-003C - Related PIR response privacy boundary**
+The `suggest_related_pirs` MCP tool shall not return PIR body excerpts, root-cause text, timeline text, 5 Whys text, or action descriptions. Each suggestion shall include only the candidate PIR number, title, status, severity, incident type, tags, numeric score, and bounded non-secret matching signals: up to five shared tags, shared tag count, shared token count, same incident type, same severity, and explicit PIR-link presence. Shared text tokens shall be counted but not returned.
+
 **REQ-MCP-004 - Write tools**
 The MCP server shall expose write tools `create_pir`, `log_incident`, `append_timeline_event`, `update_status`, `add_why`, `add_action`, `update_action`, `link_evidence`, and `finalize_review`.
 
@@ -645,7 +654,7 @@ When deserializing `people_involved`, the system shall accept either strings or 
 
 ### 9.3 MCP
 
-- [ ] Implement MCP read tools: `list_pirs`, `get_pir`, `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`, `get_incident_metrics`, `suggest_related_pirs`.
+- [x] Implement MCP read tools: `list_pirs`, `get_pir`, `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`, `get_incident_metrics`, `suggest_related_pirs`.
 - [ ] Implement MCP write tools: `create_pir`, `log_incident`, `append_timeline_event`, `update_status`, `add_why`, `add_action`, `update_action`, `link_evidence`, `finalize_review`.
 - [ ] Record agent attribution for every MCP write.
 - [ ] Add optional HTTP transport with bearer-token authentication.
