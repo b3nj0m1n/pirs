@@ -129,7 +129,11 @@ fn related_suggestions_serialize_without_forbidden_fields() {
         assert!(!object.contains_key(forbidden), "forbidden key {forbidden} leaked");
     }
 
-    assert_eq!(object["signals"]["shared_tags"].as_array().unwrap().len(), 5);
+    let shared_tags = object["signals"]["shared_tags"].as_array().unwrap();
+    assert!(shared_tags.len() <= 5);
+    assert!(shared_tags.iter().any(|tag| tag == "mcp"));
+    assert!(shared_tags.iter().any(|tag| tag == "metrics"));
+    assert!(shared_tags.iter().any(|tag| tag == "agent"));
     assert!(matches!(object["signals"]["shared_token_count"], Value::Number(_)));
 }
 
