@@ -7,8 +7,7 @@ use serde_json::Value;
 use std::collections::HashSet;
 
 pub const JSON_PIR_VERSION: &str = "1";
-pub const JSON_PIR_SCHEMA: &str =
-    "https://raw.githubusercontent.com/b3nj0m1n/pirs/main/schema/json-pir/v1.json";
+pub const JSON_PIR_SCHEMA: &str = "urn:pirs:schema:json-pir:v1";
 pub const REDACTED_VALUE: &str = "[REDACTED]";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

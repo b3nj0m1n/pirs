@@ -537,6 +537,68 @@ fn import_json_skips_existing_number_unless_overwrite_is_supplied() {
         .assert(predicate::str::contains("source problem"));
 }
 
+#[test]
+fn import_json_overwrite_removes_all_existing_number_files() {
+    let source = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(source.path())
+        .arg("init")
+        .assert()
+        .success();
+    pirs()
+        .current_dir(source.path())
+        .args([
+            "new",
+            "Source incident",
+            "--problem",
+            "source problem",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+    let exported = export_json(&source);
+
+    let target = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(target.path())
+        .arg("init")
+        .assert()
+        .success();
+    target
+        .child("doc/pir/0001-first.md")
+        .write_str("first")
+        .unwrap();
+    target
+        .child("doc/pir/0001-second.md")
+        .write_str("second")
+        .unwrap();
+    let import_file = target.child("import.json");
+    import_file.write_str(&exported).unwrap();
+
+    pirs()
+        .current_dir(target.path())
+        .args([
+            "import",
+            "json",
+            import_file.path().to_str().unwrap(),
+            "--overwrite",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("OVERWRITE 0001 Source incident"))
+        .stdout(predicate::str::contains("overwritten 1"));
+
+    target
+        .child("doc/pir/0001-first.md")
+        .assert(predicate::path::missing());
+    target
+        .child("doc/pir/0001-second.md")
+        .assert(predicate::path::missing());
+    target
+        .child("doc/pir/0001-source-incident.md")
+        .assert(predicate::str::contains("source problem"));
+}
+
 // ---------------------------------------------------------------------------
 // REQ-TIME-003: durations recomputed when status moves to resolved
 // ---------------------------------------------------------------------------

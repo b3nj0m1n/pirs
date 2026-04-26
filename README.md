@@ -82,7 +82,7 @@ PIRS/
 - YAML frontmatter parser, atomic file writes, ISO-8601 duration derivation.
 - JSON-PIR v1 schema, bulk/single export, redacted export (`--redact`), and
   import from files or stdin with dry-run and overwrite handling.
-- 28 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
+- 30 tests covering acceptance criteria AC-001/002/003/005/006/007/009/010/011,
   REQ-TIME-003 and the MCP server lifecycle.
 
 ## Not yet implemented
