@@ -1,8 +1,13 @@
 use anyhow::{Context, Result, bail};
-use pirs_core::{IssueSeverity, Repository, lint_repository, review_gate};
+use pirs_core::{IssueSeverity, Repository, lint_repository, lint_repository_language, review_gate};
 use std::path::Path;
 
-pub fn run(cwd: &Path, warnings_as_errors: bool, gate: Option<u32>) -> Result<()> {
+pub fn run(
+    cwd: &Path,
+    warnings_as_errors: bool,
+    gate: Option<u32>,
+    language: bool,
+) -> Result<()> {
     let repo = Repository::open(cwd).context("PIR repository not found; run `pirs init`")?;
 
     if let Some(n) = gate {
@@ -18,7 +23,11 @@ pub fn run(cwd: &Path, warnings_as_errors: bool, gate: Option<u32>) -> Result<()
         bail!("PIR {n:04} is not ready for Reviewed");
     }
 
-    let report = lint_repository(&repo)?;
+    let mut report = lint_repository(&repo)?;
+    if language {
+        let lang = lint_repository_language(&repo)?;
+        report.issues.extend(lang.issues);
+    }
     for issue in &report.issues {
         let label = match issue.severity {
             IssueSeverity::Error => "ERROR",

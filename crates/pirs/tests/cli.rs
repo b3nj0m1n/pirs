@@ -628,3 +628,176 @@ fn status_resolved_now_sets_resolved_at_and_duration() {
     assert!(body.contains("status: Resolved"));
     assert!(body.contains("time_to_resolve:"));
 }
+
+// ---------------------------------------------------------------------------
+// REQ-RPT-001: pirs generate report <PIR>
+// ---------------------------------------------------------------------------
+
+#[test]
+fn generate_report_renders_required_sections() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .args([
+            "new",
+            "Failing build",
+            "--problem",
+            "cargo build failed",
+            "--severity",
+            "high",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+
+    pirs()
+        .current_dir(temp.path())
+        .args(["generate", "report", "1"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("# PIR-0001: Failing build"))
+        .stdout(predicate::str::contains("## Problem Statement"))
+        .stdout(predicate::str::contains("cargo build failed"));
+}
+
+// ---------------------------------------------------------------------------
+// REQ-RPT-002: pirs generate actions
+// ---------------------------------------------------------------------------
+
+#[test]
+fn generate_actions_lists_open_actions_first() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .args(["new", "First", "--problem", "p", "--no-edit"])
+        .assert()
+        .success();
+    pirs()
+        .current_dir(temp.path())
+        .args([
+            "action", "add", "1", "--description", "fix it", "--owner", "alice",
+        ])
+        .assert()
+        .success();
+
+    pirs()
+        .current_dir(temp.path())
+        .args(["generate", "actions"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("# Action Register"))
+        .stdout(predicate::str::contains("ACT-001"))
+        .stdout(predicate::str::contains("alice"));
+}
+
+#[test]
+fn generate_actions_handles_empty_repository() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .args(["generate", "actions"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("No actions recorded"));
+}
+
+// ---------------------------------------------------------------------------
+// REQ-RPT-003: pirs metrics
+// ---------------------------------------------------------------------------
+
+#[test]
+fn metrics_summarizes_counts_and_open_actions() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .args([
+            "new", "p1", "--problem", "x", "--severity", "high", "--no-edit",
+        ])
+        .assert()
+        .success();
+    pirs()
+        .current_dir(temp.path())
+        .args([
+            "action", "add", "1", "--description", "do it", "--owner", "alice",
+        ])
+        .assert()
+        .success();
+
+    pirs()
+        .current_dir(temp.path())
+        .arg("metrics")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Incidents: 1"))
+        .stdout(predicate::str::contains("Open: 1"))
+        .stdout(predicate::str::contains("High"));
+}
+
+#[test]
+fn metrics_json_output_has_total_field() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .args(["--json", "metrics"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"total\": 0"));
+}
+
+// ---------------------------------------------------------------------------
+// REQ-RPT-004: pirs doctor --language
+// ---------------------------------------------------------------------------
+
+#[test]
+fn doctor_language_warns_on_blameful_phrases() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .args([
+            "new",
+            "Bad outage",
+            "--problem",
+            "alice was careless and dropped the ball",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+
+    pirs()
+        .current_dir(temp.path())
+        .args(["doctor", "--language"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("blame-oriented phrase"))
+        .stdout(predicate::str::contains("careless"));
+}
+
+#[test]
+fn doctor_without_language_flag_does_not_warn_on_blame_phrases() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    pirs().current_dir(temp.path()).arg("init").assert().success();
+    pirs()
+        .current_dir(temp.path())
+        .args([
+            "new",
+            "Outage",
+            "--problem",
+            "alice was careless",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+
+    pirs()
+        .current_dir(temp.path())
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("blame-oriented").not());
+}
