@@ -5,8 +5,7 @@ use regex::Regex;
 use std::path::Path;
 use std::sync::LazyLock;
 
-static NUMBER_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\d{4})-.*\.md$").unwrap());
+static NUMBER_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(\d{4})-.*\.md$").unwrap());
 
 #[derive(Debug, Default)]
 pub struct Parser {
@@ -124,13 +123,13 @@ fn extract_h1_title(content: &str) -> Option<String> {
 }
 
 fn extract_number_from_path(path: &Path) -> Result<u32> {
-    let filename = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or_else(|| Error::InvalidFormat {
-            path: path.to_path_buf(),
-            reason: "invalid filename".into(),
-        })?;
+    let filename =
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| Error::InvalidFormat {
+                path: path.to_path_buf(),
+                reason: "invalid filename".into(),
+            })?;
     NUMBER_REGEX
         .captures(filename)
         .and_then(|c| c.get(1))

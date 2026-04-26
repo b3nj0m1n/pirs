@@ -35,8 +35,8 @@ pub fn run(args: Args<'_>) -> Result<()> {
     let should_log = !success || args.always_log;
     if should_log {
         let summary = format_summary(&args.cmd, exit_code, &output.stdout, &output.stderr);
-        let repo = Repository::open(args.cwd)
-            .context("PIR repository not found; run `pirs init`")?;
+        let repo =
+            Repository::open(args.cwd).context("PIR repository not found; run `pirs init`")?;
         match (args.on_fail.as_str(), args.pir_target) {
             ("none", _) => {}
             (_, Some(target)) => append_event(&repo, target, &args, &summary, exit_code, started)?,
@@ -60,10 +60,7 @@ fn append_event(
     exit_code: i32,
     started: OffsetDateTime,
 ) -> Result<()> {
-    let actor = args
-        .agent
-        .clone()
-        .unwrap_or_else(|| whoami::username());
+    let actor = args.agent.clone().unwrap_or_else(|| whoami::username());
     repo.append_timeline(
         target,
         TimelineEvent {
@@ -102,10 +99,7 @@ fn create_pir(
     if let Some(a) = &args.agent {
         pir.people_involved.push(Actor::agent(a));
     }
-    let actor_name = args
-        .agent
-        .clone()
-        .unwrap_or_else(|| whoami::username());
+    let actor_name = args.agent.clone().unwrap_or_else(|| whoami::username());
     pir.timeline.push(TimelineEvent {
         at: finished,
         actor: actor_name,

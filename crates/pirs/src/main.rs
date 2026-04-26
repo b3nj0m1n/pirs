@@ -355,9 +355,10 @@ fn main() -> Result<()> {
             json: cli.json,
         }),
         Commands::Show { query } => commands::show::run(&cwd, &query, cli.json),
-        Commands::Search { query, case_sensitive } => {
-            commands::search::run(&cwd, &query, case_sensitive)
-        }
+        Commands::Search {
+            query,
+            case_sensitive,
+        } => commands::search::run(&cwd, &query, case_sensitive),
         Commands::Status {
             pir,
             status,
@@ -419,9 +420,7 @@ fn main() -> Result<()> {
             warnings_as_errors,
             review_gate,
         } => commands::doctor::run(&cwd, warnings_as_errors, review_gate),
-        Commands::Export { format, pir } => {
-            commands::export::run(&cwd, &format, pir)
-        }
+        Commands::Export { format, pir } => commands::export::run(&cwd, &format, pir),
         Commands::Config => commands::config::run(&cwd),
         Commands::Template { sub } => match sub {
             TemplateSub::List => commands::template::list(),

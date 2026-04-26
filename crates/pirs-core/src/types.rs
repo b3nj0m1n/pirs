@@ -31,27 +31,15 @@ pub struct Pir {
     pub problem_statement: String,
 
     /// Best-known start time of the incident.
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "ts_opt"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", with = "ts_opt")]
     pub occurred_at: Option<OffsetDateTime>,
 
     /// When the incident was discovered.
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "ts_opt"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", with = "ts_opt")]
     pub detected_at: Option<OffsetDateTime>,
 
     /// When service / tests / workflow returned to acceptable state.
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "ts_opt"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", with = "ts_opt")]
     pub resolved_at: Option<OffsetDateTime>,
 
     /// Time-to-discover (ISO-8601 duration string), derived where possible.

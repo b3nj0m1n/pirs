@@ -75,12 +75,9 @@ pub fn list_all(
             }
             if overdue {
                 let is_overdue = a.due.as_deref().is_some_and(|d| {
-                    time::Date::parse(
-                        d,
-                        &time::format_description::well_known::Iso8601::DATE,
-                    )
-                    .map(|x| x < today)
-                    .unwrap_or(false)
+                    time::Date::parse(d, &time::format_description::well_known::Iso8601::DATE)
+                        .map(|x| x < today)
+                        .unwrap_or(false)
                 }) && a.status != ActionStatus::Done
                     && a.status != ActionStatus::Cancelled;
                 if !is_overdue {

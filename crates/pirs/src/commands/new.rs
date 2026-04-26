@@ -43,11 +43,12 @@ pub fn run(args: Args<'_>) -> Result<()> {
     };
 
     // REQ-NEW-005a: agent-created Development incidents default to Low severity.
-    let default_severity = if args.agent.is_some() && matches!(incident_type, IncidentType::Development) {
-        IncidentSeverity::Low
-    } else {
-        IncidentSeverity::Low
-    };
+    let default_severity =
+        if args.agent.is_some() && matches!(incident_type, IncidentType::Development) {
+            IncidentSeverity::Low
+        } else {
+            IncidentSeverity::Low
+        };
     let severity = match args.severity.as_deref() {
         Some(s) => IncidentSeverity::from_str(s).unwrap(),
         None => default_severity,

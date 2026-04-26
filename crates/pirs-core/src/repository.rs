@@ -1,7 +1,7 @@
 //! Repository operations for PIRs.
 
 use crate::{
-    ActionItem, ActionStatus, Actor, Config, EvidenceLink, Error, IncidentStatus, Parser, Pir,
+    ActionItem, ActionStatus, Actor, Config, Error, EvidenceLink, IncidentStatus, Parser, Pir,
     Result, TimelineEvent, WhyEntry, template,
 };
 use fuzzy_matcher::FuzzyMatcher;
@@ -309,4 +309,3 @@ fn atomic_write(path: &Path, content: &str) -> Result<()> {
     fs::rename(&tmp, path)?;
     Ok(())
 }
-

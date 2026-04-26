@@ -89,7 +89,7 @@ async fn run_http(router: McpRouter, addr: String) -> Result<()> {
         );
     }
     HttpTransport::new(router)
-        .serve(addr.parse().context("invalid --http address")?)
+        .serve(&addr)
         .await
         .map_err(|e| anyhow!("MCP HTTP transport error: {e}"))
 }
@@ -167,8 +167,7 @@ fn pir_summary(p: &Pir) -> Value {
 }
 
 fn ok_json(value: Value) -> tower_mcp::Result<CallToolResult> {
-    let text = serde_json::to_string_pretty(&value)
-        .unwrap_or_else(|_| value.to_string());
+    let text = serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string());
     Ok(CallToolResult::text(text))
 }
 
@@ -203,49 +202,52 @@ fn tool_list_pirs(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("list_pirs")
         .title("List PIRs")
         .description("List all Post-Incident Reviews with optional filters.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<ListPirsInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let pirs = match repo.list() {
-                Ok(p) => p,
-                Err(e) => return err_result(e),
-            };
-            let want_status = input
-                .status
-                .as_deref()
-                .map(|s| IncidentStatus::from_str(s).unwrap());
-            let want_sev = input
-                .severity
-                .as_deref()
-                .map(|s| IncidentSeverity::from_str(s).unwrap());
-            let want_type = input
-                .incident_type
-                .as_deref()
-                .map(|s| IncidentType::from_str(s).unwrap());
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<ListPirsInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let pirs = match repo.list() {
+                    Ok(p) => p,
+                    Err(e) => return err_result(e),
+                };
+                let want_status = input
+                    .status
+                    .as_deref()
+                    .map(|s| IncidentStatus::from_str(s).unwrap());
+                let want_sev = input
+                    .severity
+                    .as_deref()
+                    .map(|s| IncidentSeverity::from_str(s).unwrap());
+                let want_type = input
+                    .incident_type
+                    .as_deref()
+                    .map(|s| IncidentType::from_str(s).unwrap());
 
-            let filtered: Vec<Value> = pirs
-                .iter()
-                .filter(|p| want_status.as_ref().is_none_or(|s| &p.status == s))
-                .filter(|p| want_sev.as_ref().is_none_or(|s| &p.severity == s))
-                .filter(|p| want_type.as_ref().is_none_or(|t| &p.incident_type == t))
-                .filter(|p| {
-                    input
-                        .tag
-                        .as_ref()
-                        .is_none_or(|t| p.tags.iter().any(|x| x == t))
-                })
-                .filter(|p| {
-                    !input.has_open_actions
-                        || p.actions.iter().any(|a| {
-                            !matches!(a.status, ActionStatus::Done | ActionStatus::Cancelled)
-                        })
-                })
-                .map(pir_summary)
-                .collect();
-            ok_json(json!({ "count": filtered.len(), "pirs": filtered }))
-        })
+                let filtered: Vec<Value> = pirs
+                    .iter()
+                    .filter(|p| want_status.as_ref().is_none_or(|s| &p.status == s))
+                    .filter(|p| want_sev.as_ref().is_none_or(|s| &p.severity == s))
+                    .filter(|p| want_type.as_ref().is_none_or(|t| &p.incident_type == t))
+                    .filter(|p| {
+                        input
+                            .tag
+                            .as_ref()
+                            .is_none_or(|t| p.tags.iter().any(|x| x == t))
+                    })
+                    .filter(|p| {
+                        !input.has_open_actions
+                            || p.actions.iter().any(|a| {
+                                !matches!(a.status, ActionStatus::Done | ActionStatus::Cancelled)
+                            })
+                    })
+                    .map(pir_summary)
+                    .collect();
+                ok_json(json!({ "count": filtered.len(), "pirs": filtered }))
+            },
+        )
         .build()
 }
 
@@ -259,16 +261,19 @@ fn tool_get_pir(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("get_pir")
         .title("Get PIR")
         .description("Fetch a single PIR by number or fuzzy title query.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<GetPirInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            match repo.find(&input.query) {
-                Ok(p) => ok_json(serde_json::to_value(&p).unwrap_or(Value::Null)),
-                Err(e) => err_result(e),
-            }
-        })
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<GetPirInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                match repo.find(&input.query) {
+                    Ok(p) => ok_json(serde_json::to_value(&p).unwrap_or(Value::Null)),
+                    Err(e) => err_result(e),
+                }
+            },
+        )
         .build()
 }
 
@@ -284,35 +289,38 @@ fn tool_search_pirs(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("search_pirs")
         .title("Search PIRs")
         .description("Search PIRs by substring match across title and problem statement.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<SearchPirsInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let pirs = match repo.list() {
-                Ok(p) => p,
-                Err(e) => return err_result(e),
-            };
-            let needle = if input.case_sensitive {
-                input.query.clone()
-            } else {
-                input.query.to_lowercase()
-            };
-            let hits: Vec<Value> = pirs
-                .iter()
-                .filter(|p| {
-                    let hay = format!("{} {}", p.title, p.problem_statement);
-                    let hay = if input.case_sensitive {
-                        hay
-                    } else {
-                        hay.to_lowercase()
-                    };
-                    hay.contains(&needle)
-                })
-                .map(pir_summary)
-                .collect();
-            ok_json(json!({ "count": hits.len(), "pirs": hits }))
-        })
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<SearchPirsInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let pirs = match repo.list() {
+                    Ok(p) => p,
+                    Err(e) => return err_result(e),
+                };
+                let needle = if input.case_sensitive {
+                    input.query.clone()
+                } else {
+                    input.query.to_lowercase()
+                };
+                let hits: Vec<Value> = pirs
+                    .iter()
+                    .filter(|p| {
+                        let hay = format!("{} {}", p.title, p.problem_statement);
+                        let hay = if input.case_sensitive {
+                            hay
+                        } else {
+                            hay.to_lowercase()
+                        };
+                        hay.contains(&needle)
+                    })
+                    .map(pir_summary)
+                    .collect();
+                ok_json(json!({ "count": hits.len(), "pirs": hits }))
+            },
+        )
         .build()
 }
 
@@ -330,52 +338,55 @@ fn tool_get_open_actions(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("get_open_actions")
         .title("Get open actions")
         .description("List action items that are still open across the repository.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<OpenActionsInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let pirs = match repo.list() {
-                Ok(p) => p,
-                Err(e) => return err_result(e),
-            };
-            let today = OffsetDateTime::now_utc().date();
-            let mut out: Vec<Value> = Vec::new();
-            for p in &pirs {
-                for a in &p.actions {
-                    if matches!(a.status, ActionStatus::Done | ActionStatus::Cancelled) {
-                        continue;
-                    }
-                    if let Some(o) = &input.owner
-                        && &a.owner != o
-                    {
-                        continue;
-                    }
-                    if input.overdue {
-                        let Some(due) = &a.due else { continue };
-                        let Ok(d) = time::Date::parse(
-                            due,
-                            &time::format_description::well_known::Iso8601::DATE,
-                        ) else {
-                            continue;
-                        };
-                        if d >= today {
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<OpenActionsInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let pirs = match repo.list() {
+                    Ok(p) => p,
+                    Err(e) => return err_result(e),
+                };
+                let today = OffsetDateTime::now_utc().date();
+                let mut out: Vec<Value> = Vec::new();
+                for p in &pirs {
+                    for a in &p.actions {
+                        if matches!(a.status, ActionStatus::Done | ActionStatus::Cancelled) {
                             continue;
                         }
+                        if let Some(o) = &input.owner
+                            && &a.owner != o
+                        {
+                            continue;
+                        }
+                        if input.overdue {
+                            let Some(due) = &a.due else { continue };
+                            let Ok(d) = time::Date::parse(
+                                due,
+                                &time::format_description::well_known::Iso8601::DATE,
+                            ) else {
+                                continue;
+                            };
+                            if d >= today {
+                                continue;
+                            }
+                        }
+                        out.push(json!({
+                            "pir": p.number,
+                            "id": a.id,
+                            "description": a.description,
+                            "owner": a.owner,
+                            "owner_type": a.owner_type.to_string(),
+                            "status": a.status.to_string(),
+                            "due": a.due,
+                        }));
                     }
-                    out.push(json!({
-                        "pir": p.number,
-                        "id": a.id,
-                        "description": a.description,
-                        "owner": a.owner,
-                        "owner_type": a.owner_type.to_string(),
-                        "status": a.status.to_string(),
-                        "due": a.due,
-                    }));
                 }
-            }
-            ok_json(json!({ "count": out.len(), "actions": out }))
-        })
+                ok_json(json!({ "count": out.len(), "actions": out }))
+            },
+        )
         .build()
 }
 
@@ -417,34 +428,37 @@ fn tool_validate_pir(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("validate_pir")
         .title("Validate PIR")
         .description("Run lint and review-gate checks against a PIR.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<ValidatePirInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let pir = match repo.get(input.pir) {
-                Ok(p) => p,
-                Err(e) => return err_result(e),
-            };
-            let issues: Vec<Value> = lint::lint_pir(&pir)
-                .iter()
-                .map(|i| {
-                    let sev = match i.severity {
-                        lint::IssueSeverity::Error => "error",
-                        lint::IssueSeverity::Warning => "warning",
-                        lint::IssueSeverity::Info => "info",
-                    };
-                    json!({ "severity": sev, "message": i.message })
-                })
-                .collect();
-            let review_missing = lint::review_gate(&pir);
-            ok_json(json!({
-                "pir": pir.number,
-                "issues": issues,
-                "review_gate_missing": review_missing,
-                "ready_for_reviewed": review_missing.is_empty(),
-            }))
-        })
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<ValidatePirInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let pir = match repo.get(input.pir) {
+                    Ok(p) => p,
+                    Err(e) => return err_result(e),
+                };
+                let issues: Vec<Value> = lint::lint_pir(&pir)
+                    .iter()
+                    .map(|i| {
+                        let sev = match i.severity {
+                            lint::IssueSeverity::Error => "error",
+                            lint::IssueSeverity::Warning => "warning",
+                            lint::IssueSeverity::Info => "info",
+                        };
+                        json!({ "severity": sev, "message": i.message })
+                    })
+                    .collect();
+                let review_missing = lint::review_gate(&pir);
+                ok_json(json!({
+                    "pir": pir.number,
+                    "issues": issues,
+                    "review_gate_missing": review_missing,
+                    "ready_for_reviewed": review_missing.is_empty(),
+                }))
+            },
+        )
         .build()
 }
 
@@ -477,62 +491,65 @@ fn tool_create_pir(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("create_pir")
         .title("Create PIR")
         .description("Create a new Post-Incident Review.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<CreatePirInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let number = match repo.next_number() {
-                Ok(n) => n,
-                Err(e) => return err_result(e),
-            };
-            let incident_type = input
-                .incident_type
-                .as_deref()
-                .map(|s| IncidentType::from_str(s).unwrap())
-                .unwrap_or(IncidentType::Development);
-            let severity = input
-                .severity
-                .as_deref()
-                .map(|s| IncidentSeverity::from_str(s).unwrap())
-                .unwrap_or(IncidentSeverity::Low);
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<CreatePirInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let number = match repo.next_number() {
+                    Ok(n) => n,
+                    Err(e) => return err_result(e),
+                };
+                let incident_type = input
+                    .incident_type
+                    .as_deref()
+                    .map(|s| IncidentType::from_str(s).unwrap())
+                    .unwrap_or(IncidentType::Development);
+                let severity = input
+                    .severity
+                    .as_deref()
+                    .map(|s| IncidentSeverity::from_str(s).unwrap())
+                    .unwrap_or(IncidentSeverity::Low);
 
-            let agent = input.agent.clone().or_else(|| st.agent.clone());
-            let mut pir = Pir::new(number, &input.title);
-            pir.problem_statement = input.problem_statement;
-            pir.incident_type = incident_type;
-            pir.severity = severity;
-            pir.tags = input.tags;
-            pir.status = IncidentStatus::Open;
-            let now = OffsetDateTime::now_utc();
-            pir.detected_at = Some(now);
-            if let Some(name) = agent.clone() {
-                pir.people_involved.push(Actor::agent(name));
-            }
-            if !input.no_initial_event {
-                let actor = pir
-                    .people_involved
-                    .first()
-                    .map(|a| a.name.clone())
-                    .unwrap_or_else(|| "mcp".into());
-                pir.timeline.push(TimelineEvent {
-                    at: now,
-                    actor,
-                    event_type: TimelineEventType::Detected,
-                    description: Some("incident detected".into()),
-                });
-            }
-            pir.recompute_durations();
-            let path = match repo.create(&pir) {
-                Ok(p) => p,
-                Err(e) => return err_result(e),
-            };
-            ok_json(json!({
-                "number": pir.number,
-                "path": path.display().to_string(),
-                "title": pir.title,
-            }))
-        })
+                let agent = input.agent.clone().or_else(|| st.agent.clone());
+                let mut pir = Pir::new(number, &input.title);
+                pir.problem_statement = input.problem_statement;
+                pir.incident_type = incident_type;
+                pir.severity = severity;
+                pir.tags = input.tags;
+                pir.status = IncidentStatus::Open;
+                let now = OffsetDateTime::now_utc();
+                pir.detected_at = Some(now);
+                if let Some(name) = agent.clone() {
+                    pir.people_involved.push(Actor::agent(name));
+                }
+                if !input.no_initial_event {
+                    let actor = pir
+                        .people_involved
+                        .first()
+                        .map(|a| a.name.clone())
+                        .unwrap_or_else(|| "mcp".into());
+                    pir.timeline.push(TimelineEvent {
+                        at: now,
+                        actor,
+                        event_type: TimelineEventType::Detected,
+                        description: Some("incident detected".into()),
+                    });
+                }
+                pir.recompute_durations();
+                let path = match repo.create(&pir) {
+                    Ok(p) => p,
+                    Err(e) => return err_result(e),
+                };
+                ok_json(json!({
+                    "number": pir.number,
+                    "path": path.display().to_string(),
+                    "title": pir.title,
+                }))
+            },
+        )
         .build()
 }
 
@@ -559,31 +576,34 @@ fn tool_append_timeline_event(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("append_timeline_event")
         .title("Append timeline event")
         .description("Append a typed timeline event to an existing PIR.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<AppendTimelineInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let at = match now_or_parse(input.at.as_deref()) {
-                Ok(t) => t,
-                Err(e) => return err_result(e),
-            };
-            let actor = input
-                .actor
-                .clone()
-                .or_else(|| st.agent.clone())
-                .unwrap_or_else(|| "mcp".into());
-            let event = TimelineEvent {
-                at,
-                actor,
-                event_type: TimelineEventType::from_str(&input.event_type).unwrap(),
-                description: Some(input.message),
-            };
-            match repo.append_timeline(input.pir, event) {
-                Ok(()) => ok_json(json!({ "pir": input.pir, "ok": true })),
-                Err(e) => err_result(e),
-            }
-        })
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<AppendTimelineInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let at = match now_or_parse(input.at.as_deref()) {
+                    Ok(t) => t,
+                    Err(e) => return err_result(e),
+                };
+                let actor = input
+                    .actor
+                    .clone()
+                    .or_else(|| st.agent.clone())
+                    .unwrap_or_else(|| "mcp".into());
+                let event = TimelineEvent {
+                    at,
+                    actor,
+                    event_type: TimelineEventType::from_str(&input.event_type).unwrap(),
+                    description: Some(input.message),
+                };
+                match repo.append_timeline(input.pir, event) {
+                    Ok(()) => ok_json(json!({ "pir": input.pir, "ok": true })),
+                    Err(e) => err_result(e),
+                }
+            },
+        )
         .build()
 }
 
@@ -603,26 +623,30 @@ fn tool_update_status(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("update_status")
         .title("Update status")
         .description("Transition a PIR's status with the same gates the CLI enforces.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<UpdateStatusInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let status = IncidentStatus::from_str(&input.status).unwrap();
-            let now = if input.now {
-                Some(OffsetDateTime::now_utc())
-            } else {
-                None
-            };
-            match repo.update_status(input.pir, status.clone(), now, input.cancellation_reason) {
-                Ok(()) => ok_json(json!({
-                    "pir": input.pir,
-                    "status": status.to_string(),
-                    "ok": true,
-                })),
-                Err(e) => err_result(e),
-            }
-        })
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<UpdateStatusInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let status = IncidentStatus::from_str(&input.status).unwrap();
+                let now = if input.now {
+                    Some(OffsetDateTime::now_utc())
+                } else {
+                    None
+                };
+                match repo.update_status(input.pir, status.clone(), now, input.cancellation_reason)
+                {
+                    Ok(()) => ok_json(json!({
+                        "pir": input.pir,
+                        "status": status.to_string(),
+                        "ok": true,
+                    })),
+                    Err(e) => err_result(e),
+                }
+            },
+        )
         .build()
 }
 
@@ -640,32 +664,35 @@ fn tool_add_why(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("add_why")
         .title("Add 5 Whys entry")
         .description("Append a 5 Whys entry to a PIR; optionally tag the answer as root cause.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<AddWhyInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            if let Err(e) = repo.add_why(
-                input.pir,
-                WhyEntry {
-                    question: input.question,
-                    answer: input.answer.clone(),
-                },
-            ) {
-                return err_result(e);
-            }
-            if input.as_root_cause {
-                let mut pir = match repo.get(input.pir) {
-                    Ok(p) => p,
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<AddWhyInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
                     Err(e) => return err_result(e),
                 };
-                pir.root_cause = Some(input.answer);
-                if let Err(e) = repo.save(&mut pir) {
+                if let Err(e) = repo.add_why(
+                    input.pir,
+                    WhyEntry {
+                        question: input.question,
+                        answer: input.answer.clone(),
+                    },
+                ) {
                     return err_result(e);
                 }
-            }
-            ok_json(json!({ "pir": input.pir, "ok": true }))
-        })
+                if input.as_root_cause {
+                    let mut pir = match repo.get(input.pir) {
+                        Ok(p) => p,
+                        Err(e) => return err_result(e),
+                    };
+                    pir.root_cause = Some(input.answer);
+                    if let Err(e) = repo.save(&mut pir) {
+                        return err_result(e);
+                    }
+                }
+                ok_json(json!({ "pir": input.pir, "ok": true }))
+            },
+        )
         .build()
 }
 
@@ -686,31 +713,34 @@ fn tool_add_action(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("add_action")
         .title("Add action item")
         .description("Add a follow-up action item to a PIR. Returns the new action id.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<AddActionInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let owner_type = input
-                .owner_type
-                .as_deref()
-                .map(|s| ActorKind::from_str(s).unwrap())
-                .unwrap_or(ActorKind::Human);
-            let action = ActionItem {
-                id: String::new(),
-                description: input.description,
-                owner: input.owner,
-                owner_type,
-                due: input.due,
-                status: ActionStatus::Open,
-                evidence: Vec::new(),
-                notes: None,
-            };
-            match repo.add_action(input.pir, action) {
-                Ok(id) => ok_json(json!({ "pir": input.pir, "action_id": id })),
-                Err(e) => err_result(e),
-            }
-        })
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<AddActionInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let owner_type = input
+                    .owner_type
+                    .as_deref()
+                    .map(|s| ActorKind::from_str(s).unwrap())
+                    .unwrap_or(ActorKind::Human);
+                let action = ActionItem {
+                    id: String::new(),
+                    description: input.description,
+                    owner: input.owner,
+                    owner_type,
+                    due: input.due,
+                    status: ActionStatus::Open,
+                    evidence: Vec::new(),
+                    notes: None,
+                };
+                match repo.add_action(input.pir, action) {
+                    Ok(id) => ok_json(json!({ "pir": input.pir, "action_id": id })),
+                    Err(e) => err_result(e),
+                }
+            },
+        )
         .build()
 }
 
@@ -728,17 +758,23 @@ fn tool_update_action(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("update_action")
         .title("Update action item")
         .description("Update an action item's status and append evidence.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<UpdateActionInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let status = ActionStatus::from_str(&input.status).unwrap();
-            match repo.update_action_status(input.pir, &input.action_id, status, input.evidence) {
-                Ok(()) => ok_json(json!({ "pir": input.pir, "action_id": input.action_id, "ok": true })),
-                Err(e) => err_result(e),
-            }
-        })
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<UpdateActionInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let status = ActionStatus::from_str(&input.status).unwrap();
+                match repo.update_action_status(input.pir, &input.action_id, status, input.evidence)
+                {
+                    Ok(()) => ok_json(
+                        json!({ "pir": input.pir, "action_id": input.action_id, "ok": true }),
+                    ),
+                    Err(e) => err_result(e),
+                }
+            },
+        )
         .build()
 }
 
@@ -760,23 +796,28 @@ fn default_link_kind() -> String {
 fn tool_link_evidence(state: Arc<PirState>) -> tower_mcp::Tool {
     ToolBuilder::new("link_evidence")
         .title("Link evidence")
-        .description("Attach a typed evidence link (commit, PR, issue, log, dashboard, ...) to a PIR.")
-        .extractor_handler(state, |State(st): State<Arc<PirState>>, Json(input): Json<LinkEvidenceInput>| async move {
-            let repo = match open_repo(&st) {
-                Ok(r) => r,
-                Err(e) => return err_result(e),
-            };
-            let kind: LinkKind = serde_json::from_value(Value::String(input.kind.clone()))
-                .unwrap_or(LinkKind::RelatedTo);
-            let link = EvidenceLink {
-                uri: input.uri,
-                kind,
-                description: input.description,
-            };
-            match repo.link_evidence(input.pir, link) {
-                Ok(()) => ok_json(json!({ "pir": input.pir, "ok": true })),
-                Err(e) => err_result(e),
-            }
-        })
+        .description(
+            "Attach a typed evidence link (commit, PR, issue, log, dashboard, ...) to a PIR.",
+        )
+        .extractor_handler(
+            state,
+            |State(st): State<Arc<PirState>>, Json(input): Json<LinkEvidenceInput>| async move {
+                let repo = match open_repo(&st) {
+                    Ok(r) => r,
+                    Err(e) => return err_result(e),
+                };
+                let kind: LinkKind = serde_json::from_value(Value::String(input.kind.clone()))
+                    .unwrap_or(LinkKind::RelatedTo);
+                let link = EvidenceLink {
+                    uri: input.uri,
+                    kind,
+                    description: input.description,
+                };
+                match repo.link_evidence(input.pir, link) {
+                    Ok(()) => ok_json(json!({ "pir": input.pir, "ok": true })),
+                    Err(e) => err_result(e),
+                }
+            },
+        )
         .build()
 }

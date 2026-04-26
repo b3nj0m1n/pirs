@@ -105,10 +105,9 @@ pub fn lint_pir(pir: &Pir) -> Vec<Issue> {
             && action.status != ActionStatus::Cancelled
         {
             // Best-effort: parse YYYY-MM-DD
-            if let Ok(due_date) = time::Date::parse(
-                due,
-                &time::format_description::well_known::Iso8601::DATE,
-            ) {
+            if let Ok(due_date) =
+                time::Date::parse(due, &time::format_description::well_known::Iso8601::DATE)
+            {
                 let today = today_local();
                 if due_date < today {
                     out.push(Issue::warning(
@@ -128,10 +127,7 @@ pub fn lint_repository(repo: &Repository) -> Result<LintReport> {
     let mut report = LintReport::default();
     let mut by_num: HashMap<u32, Vec<String>> = HashMap::new();
     for p in &pirs {
-        by_num
-            .entry(p.number)
-            .or_default()
-            .push(p.title.clone());
+        by_num.entry(p.number).or_default().push(p.title.clone());
         report.issues.extend(lint_pir(p));
     }
     for (n, titles) in by_num {

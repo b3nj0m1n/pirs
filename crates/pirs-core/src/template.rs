@@ -40,7 +40,13 @@ pub fn default_variant_for(t: &IncidentType) -> &'static str {
 }
 
 /// Names of built-in templates.
-pub const BUILTIN: &[&str] = &["development", "production", "security", "process", "minimal"];
+pub const BUILTIN: &[&str] = &[
+    "development",
+    "production",
+    "security",
+    "process",
+    "minimal",
+];
 
 const DEVELOPMENT: &str = include_str!("../templates/development.md");
 const PRODUCTION: &str = include_str!("../templates/production.md");
