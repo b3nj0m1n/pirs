@@ -10,6 +10,33 @@ fn pirs() -> Command {
     Command::cargo_bin("pirs").expect("pirs binary built")
 }
 
+fn configure_redaction(temp: &assert_fs::TempDir) {
+    temp.child("pirs.toml")
+        .write_str(
+            r#"pir_dir = "doc/pir"
+
+[templates]
+
+[privacy]
+redaction_patterns = ["token=[A-Za-z0-9_-]+"]
+sensitive_fields = []
+
+[mcp]
+http_enabled = false
+"#,
+        )
+        .unwrap();
+}
+
+fn export_json(temp: &assert_fs::TempDir) -> String {
+    let assert = pirs()
+        .current_dir(temp.path())
+        .args(["export", "json"])
+        .assert()
+        .success();
+    String::from_utf8(assert.get_output().stdout.clone()).unwrap()
+}
+
 // ---------------------------------------------------------------------------
 // Help / version
 // ---------------------------------------------------------------------------
@@ -304,6 +331,201 @@ fn ac_011_export_json_emits_schema_and_pir() {
     assert!(out.contains("\"schema\""));
     assert!(out.contains("\"pirs\""));
     assert!(out.contains("Foo"));
+}
+
+#[test]
+fn ac_011_export_json_redact_masks_configured_patterns() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(temp.path())
+        .arg("init")
+        .assert()
+        .success();
+    configure_redaction(&temp);
+    pirs()
+        .current_dir(temp.path())
+        .args([
+            "new",
+            "Leaky command output",
+            "--problem",
+            "captured stdout contained token=abc123 and a harmless value",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+
+    let plain = export_json(&temp);
+    assert!(plain.contains("token=abc123"), "plain export: {plain}");
+
+    let assert = pirs()
+        .current_dir(temp.path())
+        .args(["export", "json", "--redact"])
+        .assert()
+        .success();
+    let redacted = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    assert!(!redacted.contains("token=abc123"), "redacted export: {redacted}");
+    assert!(redacted.contains("[REDACTED]"), "redacted export: {redacted}");
+}
+
+#[test]
+fn import_json_file_creates_pir_from_bulk_export() {
+    let source = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(source.path())
+        .arg("init")
+        .assert()
+        .success();
+    pirs()
+        .current_dir(source.path())
+        .args([
+            "new",
+            "Round trip incident",
+            "--problem",
+            "exported from another repository",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+    let exported = export_json(&source);
+
+    let target = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(target.path())
+        .arg("init")
+        .assert()
+        .success();
+    let import_file = target.child("import.json");
+    import_file.write_str(&exported).unwrap();
+
+    pirs()
+        .current_dir(target.path())
+        .args(["import", "json", import_file.path().to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("NEW 0001 Round trip incident"))
+        .stdout(predicate::str::contains("imported 1"));
+
+    let imported = target.child("doc/pir/0001-round-trip-incident.md");
+    imported.assert(predicate::path::exists());
+    imported.assert(predicate::str::contains("exported from another repository"));
+}
+
+#[test]
+fn import_json_stdin_dry_run_reports_without_writing() {
+    let source = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(source.path())
+        .arg("init")
+        .assert()
+        .success();
+    pirs()
+        .current_dir(source.path())
+        .args([
+            "new",
+            "Dry run incident",
+            "--problem",
+            "should not be written",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+    let exported = export_json(&source);
+
+    let target = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(target.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    pirs()
+        .current_dir(target.path())
+        .args(["import", "json", "-", "--dry-run"])
+        .write_stdin(exported)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("NEW 0001 Dry run incident"))
+        .stdout(predicate::str::contains("dry run"));
+
+    let entries: Vec<_> = std::fs::read_dir(target.child("doc/pir").path())
+        .unwrap()
+        .collect();
+    assert!(entries.is_empty(), "dry-run must not create files: {entries:?}");
+}
+
+#[test]
+fn import_json_skips_existing_number_unless_overwrite_is_supplied() {
+    let source = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(source.path())
+        .arg("init")
+        .assert()
+        .success();
+    pirs()
+        .current_dir(source.path())
+        .args([
+            "new",
+            "Source incident",
+            "--problem",
+            "source problem",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+    let exported = export_json(&source);
+
+    let target = assert_fs::TempDir::new().unwrap();
+    pirs()
+        .current_dir(target.path())
+        .arg("init")
+        .assert()
+        .success();
+    pirs()
+        .current_dir(target.path())
+        .args([
+            "new",
+            "Existing incident",
+            "--problem",
+            "existing problem",
+            "--no-edit",
+        ])
+        .assert()
+        .success();
+    let import_file = target.child("import.json");
+    import_file.write_str(&exported).unwrap();
+
+    pirs()
+        .current_dir(target.path())
+        .args(["import", "json", import_file.path().to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("SKIP 0001 Source incident"))
+        .stdout(predicate::str::contains("imported 0"));
+    target
+        .child("doc/pir/0001-existing-incident.md")
+        .assert(predicate::str::contains("existing problem"));
+    target
+        .child("doc/pir/0001-source-incident.md")
+        .assert(predicate::path::missing());
+
+    pirs()
+        .current_dir(target.path())
+        .args([
+            "import",
+            "json",
+            import_file.path().to_str().unwrap(),
+            "--overwrite",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("OVERWRITE 0001 Source incident"))
+        .stdout(predicate::str::contains("imported 1"));
+    target
+        .child("doc/pir/0001-existing-incident.md")
+        .assert(predicate::path::missing());
+    target
+        .child("doc/pir/0001-source-incident.md")
+        .assert(predicate::str::contains("source problem"));
 }
 
 // ---------------------------------------------------------------------------
