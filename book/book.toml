@@ -1,0 +1,12 @@
+[book]
+title = "pirs — Post-Incident Reviews"
+description = "User documentation for the pirs CLI and MCP server"
+authors = ["pirs contributors"]
+language = "en"
+src = "src"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/joshrotenberg/pirs"
+edit-url-template = "https://github.com/joshrotenberg/pirs/edit/main/book/{path}"

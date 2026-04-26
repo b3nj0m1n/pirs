@@ -5,3 +5,6 @@
 .mcp.json
 CLAUDE.md
 .DS_Store
+
+# mdBook build output
+book/book/
