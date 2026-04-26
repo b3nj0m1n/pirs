@@ -44,4 +44,4 @@ Overall: **MERGE** (with one deferred MEDIUM tracked).
 
 - `cargo build --all-targets`: clean.
 - `cargo clippy --all-targets --all-features -- -D warnings`: clean.
-- `cargo test --all`: 37 tests passed (15 existing CLI + 7 new CLI + 4 MCP + 11 unit).
+- `cargo test --all`: 46 tests passed (15 existing CLI + 7 new CLI + 4 MCP + 19 unit + 1 doc).
