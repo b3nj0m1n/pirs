@@ -181,27 +181,25 @@ struct PirFilters {
 
 fn filter_pirs<'a>(pirs: &'a [Pir], filters: &PirFilters) -> Vec<&'a Pir> {
     pirs.iter()
-        .filter(|p| filters.status.as_ref().is_none_or(|s| &p.status == s))
-        .filter(|p| filters.severity.as_ref().is_none_or(|s| &p.severity == s))
-        .filter(|p| {
-            filters
-                .incident_type
-                .as_ref()
-                .is_none_or(|t| &p.incident_type == t)
-        })
-        .filter(|p| {
-            filters
-                .tag
-                .as_ref()
-                .is_none_or(|t| p.tags.iter().any(|x| x == t))
-        })
-        .filter(|p| {
-            !filters.has_open_actions
-                || p.actions
-                    .iter()
-                    .any(|a| !matches!(a.status, ActionStatus::Done | ActionStatus::Cancelled))
-        })
+        .filter(|p| pir_matches_filters(p, filters))
         .collect()
+}
+
+fn pir_matches_filters(p: &Pir, filters: &PirFilters) -> bool {
+    filters.status.as_ref().is_none_or(|s| &p.status == s)
+        && filters.severity.as_ref().is_none_or(|s| &p.severity == s)
+        && filters
+            .incident_type
+            .as_ref()
+            .is_none_or(|t| &p.incident_type == t)
+        && filters
+            .tag
+            .as_ref()
+            .is_none_or(|t| p.tags.iter().any(|x| x == t))
+        && (!filters.has_open_actions
+            || p.actions
+                .iter()
+                .any(|a| !matches!(a.status, ActionStatus::Done | ActionStatus::Cancelled)))
 }
 
 fn ok_json(value: Value) -> tower_mcp::Result<CallToolResult> {
@@ -219,13 +217,18 @@ fn err_result<E: std::fmt::Display>(e: E) -> tower_mcp::Result<CallToolResult> {
 
 #[derive(Debug, Deserialize, JsonSchema, Default)]
 struct ListPirsInput {
-    /// Filter by status (open, investigating, mitigated, resolved, reviewed, cancelled).
+    /// Filter by status. Built-in statuses include `open`, `investigating`,
+    /// `mitigated`, `resolved`, `reviewed`, and `cancelled`; custom status
+    /// strings are also accepted and matched literally.
     #[serde(default)]
     status: Option<String>,
-    /// Filter by severity (low, medium, high, critical).
+    /// Filter by severity. Common values include `low`, `medium`, `high`, and
+    /// `critical`; custom severity strings are also accepted and matched literally.
     #[serde(default)]
     severity: Option<String>,
-    /// Filter by incident type (development, production, security, process).
+    /// Filter by incident type. Common values include `development`, `production`,
+    /// `security`, and `process`; custom incident type strings are also accepted
+    /// and matched literally.
     #[serde(default)]
     incident_type: Option<String>,
     /// Filter by tag.
@@ -509,13 +512,18 @@ fn tool_validate_pir(state: Arc<PirState>) -> tower_mcp::Tool {
 
 #[derive(Debug, Deserialize, JsonSchema, Default)]
 struct IncidentMetricsInput {
-    /// Filter by status (open, investigating, mitigated, resolved, reviewed, cancelled).
+    /// Filter by status. Built-in statuses include `open`, `investigating`,
+    /// `mitigated`, `resolved`, `reviewed`, and `cancelled`; custom status
+    /// strings are also accepted and matched literally.
     #[serde(default)]
     status: Option<String>,
-    /// Filter by severity (low, medium, high, critical).
+    /// Filter by severity. Common values include `low`, `medium`, `high`, and
+    /// `critical`; custom severity strings are also accepted and matched literally.
     #[serde(default)]
     severity: Option<String>,
-    /// Filter by incident type (development, production, security, process).
+    /// Filter by incident type. Common values include `development`, `production`,
+    /// `security`, and `process`; custom incident type strings are also accepted
+    /// and matched literally.
     #[serde(default)]
     incident_type: Option<String>,
     /// Filter by tag.
@@ -551,8 +559,10 @@ fn tool_get_incident_metrics(state: Arc<PirState>) -> tower_mcp::Tool {
                     input.tag.clone(),
                     input.has_open_actions,
                 );
-                let selected: Vec<Pir> =
-                    filter_pirs(&pirs, &filters).into_iter().cloned().collect();
+                let selected: Vec<Pir> = pirs
+                    .into_iter()
+                    .filter(|p| pir_matches_filters(p, &filters))
+                    .collect();
                 let metrics = compute_metrics(&selected);
                 let metrics_value = match serde_json::to_value(&metrics) {
                     Ok(value) => value,
