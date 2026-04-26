@@ -458,6 +458,15 @@ When an MCP tool is invoked, the system shall open the repository fresh for that
 **REQ-MCP-003 - Read-only tools**
 The MCP server shall expose read-only tools `list_pirs`, `get_pir`, `search_pirs`, `get_open_actions`, `get_repository_info`, `validate_pir`, `get_incident_metrics`, and `suggest_related_pirs`.
 
+**REQ-MCP-003A - Incident metrics MCP tool**
+When the `get_incident_metrics` MCP tool is called, the system shall open the repository for that call, apply optional `status`, `severity`, `incident_type`, `tag`, and `has_open_actions` filters using the same semantics as `list_pirs`, and return a stable JSON object containing the selected filter scope plus the `IncidentMetrics` fields `total`, `by_status`, `by_severity`, `by_type`, `ttd_seconds`, `ttr_seconds`, `recurring_tags`, `open_actions`, and `total_actions`. Where `include_text` is true, the system shall also include the same human-readable metrics summary used by `pirs metrics`.
+
+**REQ-MCP-003B - Related PIR suggestion MCP tool**
+When the `suggest_related_pirs` MCP tool is called with a PIR number, the system shall open the repository for that call, score every other PIR using deterministic local metadata and text signals, and return at most `limit` suggestions ordered by descending score and then ascending PIR number. The tool shall cap `limit` at 20, default it to 5, and omit candidates below `min_score`, defaulting `min_score` to 1.
+
+**REQ-MCP-003C - Related PIR response privacy boundary**
+The `suggest_related_pirs` MCP tool shall not return PIR body excerpts, root-cause text, timeline text, 5 Whys text, or action descriptions. Each suggestion shall include only the candidate PIR number, title, status, severity, incident type, tags, numeric score, and non-secret matching signals such as shared tags, shared tag count, shared token count, same incident type, same severity, and explicit PIR-link presence.
+
 **REQ-MCP-004 - Write tools**
 The MCP server shall expose write tools `create_pir`, `log_incident`, `append_timeline_event`, `update_status`, `add_why`, `add_action`, `update_action`, `link_evidence`, and `finalize_review`.
 
