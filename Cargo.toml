@@ -41,7 +41,7 @@ whoami = "1"
 
 # MCP server
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-util", "io-std", "sync", "time", "signal"] }
-tower-mcp = { version = "0.10", default-features = false }
+tower-mcp = { version = "0.11", default-features = false }
 schemars = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
